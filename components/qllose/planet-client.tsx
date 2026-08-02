@@ -110,39 +110,20 @@ export function PlanetClient({
 
 
 
-    const newMessage: Message = {
-
-      id: data.id,
-
-      author:
-        profile?.nickname ||
-        profile?.username ||
-        'User',
-
-
-      initials:
-        (profile?.username || 'U')
-          .slice(0, 2)
-          .toUpperCase(),
-
-
-      color: 'var(--primary)',
-
-
-      avatar_url:
-        profile?.avatar_url || null,
-
-
-      time:
-        new Date(data.created_at)
-          .toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-
-
-      text: data.content,
-    }
+   const newMessage: Message = {
+  id: data.id,
+  author: profile?.nickname || profile?.username || 'User',
+  initials: (profile?.username || 'U')
+    .slice(0, 2)
+    .toUpperCase(),
+  color: 'var(--primary)',
+  avatar_url: profile?.avatar_url || null,
+  time: new Date(data.created_at).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  }),
+  text: data.content,
+}
 
 
 

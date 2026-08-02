@@ -109,6 +109,7 @@ export interface Message {
   color: string
   time: string
   text: string
+  avatar_url?: string | null
   reactions?: { emoji: string; count: number }[]
 }
 
