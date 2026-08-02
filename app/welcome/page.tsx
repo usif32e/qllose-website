@@ -1,3 +1,4 @@
+
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Starfield } from '@/components/qllose/starfield'
@@ -10,7 +11,6 @@ export default function WelcomePage() {
     <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
       <Starfield density={110} />
 
-      {/* Ambient cosmic light behind the whole scene */}
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[640px] w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
@@ -21,7 +21,6 @@ export default function WelcomePage() {
       />
 
       <div className="animate-rise flex flex-col items-center">
-        {/* Centered brand logo with cosmic glow, proportions preserved */}
         <Logo showText={false} size={168} cinematic className="mb-2" />
 
         <h1 className="mt-10 text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -37,13 +36,13 @@ export default function WelcomePage() {
         </p>
 
         <Link
-          href="/planets"
+          href="/create-profile"
           className={cn(
             buttonVariants({ variant: 'default' }),
             'group mt-12 h-12 rounded-xl px-8 text-sm font-medium',
           )}
         >
-          Explore The Universe
+          Create Your Profile
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>
