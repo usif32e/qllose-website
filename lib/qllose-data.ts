@@ -101,7 +101,6 @@ export const planets: Planet[] = [
 export function getPlanet(id: string): Planet | undefined {
   return planets.find((p) => p.id === id)
 }
-
 export interface Message {
   id: string
   author: string
@@ -112,7 +111,6 @@ export interface Message {
   avatar_url?: string | null
   reactions?: { emoji: string; count: number }[]
 }
-
 export interface Member {
   name: string
   initials: string
