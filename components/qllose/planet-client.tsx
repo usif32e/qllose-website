@@ -17,7 +17,6 @@ interface PlanetClientProps {
 
 export function PlanetClient({
   planet,
-  baseMessages,
   members,
 }: PlanetClientProps) {
 
@@ -30,12 +29,15 @@ export function PlanetClient({
     avatar_url: string | null
   } | null>(null)
 
+
   const [threads, setThreads] = useState<Record<string, Message[]>>({
-    Global: baseMessages,
+    Global: [],
   })
 
 
+  // Load current user profile
   useEffect(() => {
+
     async function loadProfile() {
 
       const {
@@ -60,6 +62,7 @@ export function PlanetClient({
 
 
       setProfile(data)
+
     }
 
 
@@ -69,7 +72,139 @@ export function PlanetClient({
 
 
 
-  const messages = threads[activeChannel] ?? []
+  // Load messages + realtime
+useEffect(() => {
+  async function loadMessages() {
+    console.log('Loading messages...')
+    console.log('Planet:', planet.id)
+    console.log('Channel:', activeChannel)
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('planet_id', planet.id)
+      .eq('channel', activeChannel)
+      .order('created_at', {
+        ascending: true,
+      })
+
+
+    if (error) {
+      console.log('LOAD MESSAGE ERROR:', error)
+      return
+    }
+
+console.log('RAW MESSAGES:', data)
+console.log('ERROR:', error)
+
+
+    const userIds = [
+      ...new Set(
+        data.map((m) => m.user_id)
+      ),
+    ]
+
+
+    const { data: profiles, error: profileError } =
+      await supabase
+        .from('profiles')
+        .select(
+          'id, username, nickname, avatar_url'
+        )
+        .in('id', userIds)
+
+
+    if (profileError) {
+      console.log(
+        'PROFILE ERROR:',
+        profileError
+      )
+    }
+
+
+    const formatted: Message[] = data.map((m) => {
+
+      const userProfile =
+        profiles?.find(
+          (p) => p.id === m.user_id
+        )
+
+
+      return {
+        id: m.id,
+
+        author:
+          userProfile?.nickname ||
+          userProfile?.username ||
+          'User',
+
+        initials:
+          (
+            userProfile?.username ||
+            'U'
+          )
+            .slice(0, 2)
+            .toUpperCase(),
+
+        color: 'var(--primary)',
+
+        avatar_url:
+          userProfile?.avatar_url ||
+          null,
+
+        time:
+          new Date(m.created_at)
+            .toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+
+        text: m.content,
+      }
+    })
+
+
+    setThreads((prev) => ({
+      ...prev,
+      [activeChannel]: formatted,
+    }))
+
+  }
+
+
+  loadMessages()
+
+
+  const channel = supabase
+    .channel(
+      `messages-${planet.id}-${activeChannel}`
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter:
+          `planet_id=eq.${planet.id}`,
+      },
+      () => {
+        loadMessages()
+      }
+    )
+    .subscribe()
+
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+
+
+}, [planet.id, activeChannel])
+
+
+  const messages =
+    threads[activeChannel] ?? []
 
 
   const typingUsers =
@@ -77,9 +212,7 @@ export function PlanetClient({
       ? [members[0]?.name].filter(Boolean) as string[]
       : []
 
-
-
-  async function handleSend(text: string) {
+   async function handleSend(text: string) {
 
     const {
       data: { user },
@@ -89,8 +222,7 @@ export function PlanetClient({
     if (!user) return
 
 
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('messages')
       .insert({
         user_id: user.id,
@@ -98,43 +230,11 @@ export function PlanetClient({
         channel: activeChannel,
         content: text,
       })
-      .select()
-      .single()
-
 
 
     if (error) {
-      console.log('MESSAGE ERROR:', error)
-      return
+      console.log('SEND MESSAGE ERROR:', error)
     }
-
-
-
-   const newMessage: Message = {
-  id: data.id,
-  author: profile?.nickname || profile?.username || 'User',
-  initials: (profile?.username || 'U')
-    .slice(0, 2)
-    .toUpperCase(),
-  color: 'var(--primary)',
-  avatar_url: profile?.avatar_url || null,
-  time: new Date(data.created_at).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  }),
-  text: data.content,
-}
-
-
-
-    setThreads((prev) => ({
-      ...prev,
-
-      [activeChannel]: [
-        ...(prev[activeChannel] ?? []),
-        newMessage,
-      ],
-    }))
 
   }
 
