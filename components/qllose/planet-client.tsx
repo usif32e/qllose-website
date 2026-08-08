@@ -10,805 +10,1120 @@ import { PlanetSidebar } from '@/components/qllose/planet-sidebar'
 import { ChatView } from '@/components/qllose/chat-view'
 import { MembersPanel } from '@/components/qllose/members-panel'
 
-
 interface PlanetClientProps {
   planet: Planet
 }
 
+type MobileView = 'chat' | 'channels' | 'members'
 
 export function PlanetClient({
   planet,
 }: PlanetClientProps) {
-
-
   const [activeChannel, setActiveChannel] =
     useState('Global')
 
-
   const [profile, setProfile] =
     useState<{
-      id:string
-      username:string
-      nickname:string
-      avatar_url:string|null
+      id: string
+      username: string
+      nickname: string
+      avatar_url: string | null
     } | null>(null)
-
 
   const [planetMembers, setPlanetMembers] =
     useState<Member[]>([])
 
-
-  const [memberCount,setMemberCount] =
+  const [memberCount, setMemberCount] =
     useState(0)
 
-
-  const [threads,setThreads] =
-    useState<Record<string,Message[]>>({
-      Global:[]
+  const [threads, setThreads] =
+    useState<Record<string, Message[]>>({
+      Global: [],
     })
 
-
-  const [typingUsers,setTypingUsers] =
+  const [typingUsers, setTypingUsers] =
     useState<string[]>([])
-const onlineIdsRef = useRef<Set<string>>(new Set())
 
+  const [mobileView, setMobileView] =
+    useState<MobileView>('chat')
 
-  async function loadProfile(){
+  const onlineIdsRef =
+    useRef<Set<string>>(new Set())
 
+  // =====================================================
+  // PROFILE
+  // =====================================================
+
+  async function loadProfile() {
     const {
-      data:{user}
+      data: { user },
     } = await supabase.auth.getUser()
 
+    if (!user) return
 
-    if(!user)
-      return
-
-
-    const {data,error} =
+    const { data, error } =
       await supabase
-      .from('profiles')
-      .select(
-        'id,username,nickname,avatar_url'
-      )
-      .eq(
-        'id',
-        user.id
-      )
-      .single()
+        .from('profiles')
+        .select(
+          'id,username,nickname,avatar_url'
+        )
+        .eq('id', user.id)
+        .single()
 
-
-    if(error){
-
+    if (error) {
       console.log(
         'PROFILE ERROR:',
         error
       )
-
       return
-
     }
 
-
     setProfile(data)
-
   }
 
+  // =====================================================
+  // MEMBERS
+  // =====================================================
 
+  async function loadMembers() {
+    /*
+     * IMPORTANT:
+     * We intentionally do NOT use:
+     *
+     * profiles(...)
+     *
+     * inside the planet_members query.
+     *
+     * We first get the member IDs, then get their
+     * profiles separately. This avoids relationship/RLS
+     * issues with Supabase nested selects.
+     */
 
-  async function loadMembers(){
-
-    const {data,error} =
-      await supabase
+    const {
+      data: memberRows,
+      error: membersError,
+    } = await supabase
       .from('planet_members')
-      .select(`
-        user_id,
-        role,
-        profiles(
-          id,
-          username,
-          nickname,
-          avatar_url
-        )
-      `)
+      .select('user_id,role')
       .eq(
         'planet_id',
         planet.id
       )
 
-
-    if(error){
-
+    if (membersError) {
       console.log(
         'MEMBERS ERROR:',
-        error
+        membersError
+      )
+
+      setPlanetMembers([])
+      setMemberCount(0)
+
+      return
+    }
+
+    if (!memberRows || memberRows.length === 0) {
+      setPlanetMembers([])
+      setMemberCount(0)
+
+      console.log(
+        'NO MEMBERS FOUND FOR PLANET:',
+        planet.id
       )
 
       return
-
     }
 
+    const userIds = [
+      ...new Set(
+        memberRows.map(
+          (member: any) =>
+            member.user_id
+        )
+      ),
+    ]
 
+    const {
+      data: profileRows,
+      error: profilesError,
+    } = await supabase
+      .from('profiles')
+      .select(
+        'id,username,nickname,avatar_url'
+      )
+      .in(
+        'id',
+        userIds
+      )
 
-    const formatted:Member[] =
-      (data || []).map((m:any)=>{
+    if (profilesError) {
+      console.log(
+        'MEMBER PROFILES ERROR:',
+        profilesError
+      )
+    }
 
+    const profiles =
+      profileRows || []
 
-        const p =
-          Array.isArray(m.profiles)
-          ? m.profiles[0]
-          : m.profiles
-
-
-
-        return {
-
-          user_id:m.user_id,
-
-          name:
-            p?.nickname ||
-            p?.username ||
-            'User',
-
-
-          initials:
-            (
-              p?.username ||
-              'U'
+    const formatted: Member[] =
+      memberRows.map(
+        (member: any) => {
+          const memberProfile =
+            profiles.find(
+              (p: any) =>
+                p.id ===
+                member.user_id
             )
-            .slice(0,2)
-            .toUpperCase(),
 
+          return {
+            user_id:
+              member.user_id,
 
-          color:
-            'var(--primary)',
+            name:
+              memberProfile?.nickname ||
+              memberProfile?.username ||
+              'User',
 
+            initials:
+              (
+                memberProfile?.username ||
+                memberProfile?.nickname ||
+                'U'
+              )
+                .slice(0, 2)
+                .toUpperCase(),
 
-          role:
-            m.role || 'Member',
+            color:
+              'var(--primary)',
 
-         online: onlineIdsRef.current.has(m.user_id),
+            role:
+              member.role ||
+              'Member',
 
+            online:
+              onlineIdsRef.current.has(
+                member.user_id
+              ),
 
-          avatar_url:
-            p?.avatar_url || null
-
+            avatar_url:
+              memberProfile?.avatar_url ||
+              null,
+          }
         }
+      )
 
-
-      })
-
-
-    setPlanetMembers(formatted)
-
+    setPlanetMembers(
+      formatted
+    )
 
     setMemberCount(
       formatted.length
     )
-
   }
 
+  // =====================================================
+  // INITIAL LOAD
+  // =====================================================
 
-useEffect(() => {
-  if (!planet?.id || !profile?.id) return
-
-  const presenceChannel = supabase.channel(
-    `planet-presence-${planet.id}`,
-    {
-      config: {
-        presence: {
-          key: profile.id,
-        },
-      },
+  useEffect(() => {
+    async function init() {
+      await loadProfile()
+      await loadMembers()
     }
-  )
 
-  const updateOnlineStatus = () => {
-  const state = presenceChannel.presenceState()
+    init()
+  }, [planet.id])
 
-  const onlineIds = new Set<string>()
+  // =====================================================
+  // REALTIME PRESENCE
+  // =====================================================
 
-  Object.entries(state).forEach(([key, presences]) => {
-    onlineIds.add(key)
-
-    ;(presences as any[]).forEach(presence => {
-      if (presence.user_id) {
-        onlineIds.add(presence.user_id)
-      }
-    })
-  })
-
-  setPlanetMembers(prev =>
-    prev.map(member => ({
-      ...member,
-      online: onlineIds.has(member.user_id),
-    }))
-  )
-}
-
-  presenceChannel
-    .on(
-      'presence',
-      { event: 'sync' },
-      updateOnlineStatus
-    )
-    .on(
-      'presence',
-      { event: 'join' },
-      updateOnlineStatus
-    )
-    .on(
-      'presence',
-      { event: 'leave' },
-      updateOnlineStatus
-    )
- .subscribe(async status => {
-  if (status === 'SUBSCRIBED') {
-
-    await presenceChannel.track({
-      user_id: profile.id,
-    })
-
-    // اعتبر المستخدم الحالي Online فور نجاح الاتصال
-    onlineIdsRef.current.add(profile.id)
-
-    setPlanetMembers(prev =>
-      prev.map(member => ({
-        ...member,
-        online:
-          member.user_id === profile.id
-            ? true
-            : onlineIdsRef.current.has(
-                member.user_id
-              ),
-      }))
-    )
-
-    // نقرأ Presence الحقيقي بعد الـ sync
-    setTimeout(() => {
-      updateOnlineStatus()
-    }, 300)
-
-  }
-})
-
-  return () => {
-    supabase.removeChannel(
-      presenceChannel
-    )
-  }
-}, [planet?.id, profile?.id])
-
-
-  async function joinPlanet(){
-
-    const {
-      data:{user}
-    } = await supabase.auth.getUser()
-
-
-    if(!user)
+  useEffect(() => {
+    if (
+      !planet?.id ||
+      !profile?.id
+    ) {
       return
+    }
 
-
-
-    const {error} =
-      await supabase.rpc(
-        'join_planet',
+    const presenceChannel =
+      supabase.channel(
+        `planet-presence-${planet.id}`,
         {
-          p_planet_id: planet.id
+          config: {
+            presence: {
+              key: profile.id,
+            },
+          },
         }
       )
 
+    const updateOnlineStatus =
+      () => {
+        const state =
+          presenceChannel.presenceState()
 
-    if(error){
+        const onlineIds =
+          new Set<string>()
 
+        Object.entries(
+          state
+        ).forEach(
+          ([key, presences]) => {
+            onlineIds.add(key)
+
+            ;(
+              presences as any[]
+            ).forEach(
+              (
+                presence
+              ) => {
+                if (
+                  presence?.user_id
+                ) {
+                  onlineIds.add(
+                    presence.user_id
+                  )
+                }
+              }
+            )
+          }
+        )
+
+        onlineIdsRef.current =
+          onlineIds
+
+        setPlanetMembers(
+          prev =>
+            prev.map(
+              member => ({
+                ...member,
+
+                online:
+                  onlineIds.has(
+                    member.user_id
+                  ),
+              })
+            )
+        )
+      }
+
+    presenceChannel
+      .on(
+        'presence',
+        {
+          event: 'sync',
+        },
+        updateOnlineStatus
+      )
+      .on(
+        'presence',
+        {
+          event: 'join',
+        },
+        updateOnlineStatus
+      )
+      .on(
+        'presence',
+        {
+          event: 'leave',
+        },
+        updateOnlineStatus
+      )
+      .subscribe(
+        async status => {
+          if (
+            status ===
+            'SUBSCRIBED'
+          ) {
+            await presenceChannel.track(
+              {
+                user_id:
+                  profile.id,
+              }
+            )
+
+            onlineIdsRef.current.add(
+              profile.id
+            )
+
+            setPlanetMembers(
+              prev =>
+                prev.map(
+                  member => ({
+                    ...member,
+
+                    online:
+                      member.user_id ===
+                      profile.id
+                        ? true
+                        : onlineIdsRef.current.has(
+                            member.user_id
+                          ),
+                  })
+                )
+            )
+
+            setTimeout(
+              () => {
+                updateOnlineStatus()
+              },
+              500
+            )
+          }
+        }
+      )
+
+    return () => {
+      supabase.removeChannel(
+        presenceChannel
+      )
+    }
+  }, [
+    planet?.id,
+    profile?.id,
+  ])
+
+  // =====================================================
+  // JOIN PLANET
+  // =====================================================
+
+  async function joinPlanet() {
+    const {
+      data: { user },
+    } =
+      await supabase.auth.getUser()
+
+    if (!user) return
+
+    const { error } =
+      await supabase.rpc(
+        'join_planet',
+        {
+          p_planet_id:
+            planet.id,
+        }
+      )
+
+    if (error) {
       console.log(
         'JOIN ERROR:',
         error
       )
 
       return
-
     }
-
 
     await loadMembers()
-
   }
 
-
-
-
-  useEffect(()=>{
-
-    async function init(){
-
-      await loadProfile()
-
-      await loadMembers()
-
-    }
-
-
-    init()
-
-
-  },[planet.id])
-
-
-
-
-
+  // =====================================================
   // MESSAGES
+  // =====================================================
 
-  useEffect(()=>{
-
-
-    async function loadMessages(){
-
-
-      const {data,error} =
+  useEffect(() => {
+    async function loadMessages() {
+      const {
+        data,
+        error,
+      } =
         await supabase
-        .from('messages')
-        .select('*')
-        .eq(
-          'planet_id',
-          planet.id
-        )
-        .eq(
-          'channel',
-          activeChannel
-        )
-        .order(
-          'created_at',
-          {
-            ascending:true
-          }
-        )
+          .from('messages')
+          .select('*')
+          .eq(
+            'planet_id',
+            planet.id
+          )
+          .eq(
+            'channel',
+            activeChannel
+          )
+          .order(
+            'created_at',
+            {
+              ascending: true,
+            }
+          )
 
-
-      if(error){
-
+      if (error) {
         console.log(
           'MESSAGES ERROR:',
           error
         )
 
         return
-
       }
 
-
-
-      const ids =
-      [
+      const ids = [
         ...new Set(
-          data.map(
-            m=>m.user_id
+          (data || []).map(
+            (m: any) =>
+              m.user_id
           )
-        )
+        ),
       ]
 
+      let profiles: any[] = []
 
-
-      let profiles:any[] = []
-
-
-
-      if(ids.length > 0){
-
-        const {data:profileData} =
+      if (ids.length > 0) {
+        const {
+          data: profileData,
+        } =
           await supabase
-          .from('profiles')
-          .select(
-            'id,username,nickname,avatar_url'
-          )
-          .in(
-            'id',
-            ids
-          )
-
+            .from('profiles')
+            .select(
+              'id,username,nickname,avatar_url'
+            )
+            .in(
+              'id',
+              ids
+            )
 
         profiles =
           profileData || []
-
       }
 
+      const formatted: Message[] =
+        (data || []).map(
+          (m: any) => {
+            const p =
+              profiles.find(
+                x =>
+                  x.id ===
+                  m.user_id
+              )
 
+            return {
+              id: m.id,
 
-      const formatted:Message[] =
-      data.map((m:any)=>{
+              user_id:
+                m.user_id,
 
+              author:
+                p?.nickname ||
+                p?.username ||
+                'User',
 
-        const p =
-          profiles.find(
-            x=>x.id===m.user_id
-          )
+              initials:
+                (
+                  p?.username ||
+                  'U'
+                )
+                  .slice(0, 2)
+                  .toUpperCase(),
 
+              color:
+                'var(--primary)',
 
-        return {
+              avatar_url:
+                p?.avatar_url ||
+                null,
 
-          id:m.id,
+              time:
+                new Date(
+                  m.created_at
+                ).toLocaleTimeString(
+                  [],
+                  {
+                    hour:
+                      '2-digit',
+                    minute:
+                      '2-digit',
+                  }
+                ),
 
-          author:
-            p?.nickname ||
-            p?.username ||
-            'User',
+              text:
+                m.content,
+            }
+          }
+        )
 
+      setThreads(
+        prev => ({
+          ...prev,
 
-          initials:
-            (
-              p?.username ||
-              'U'
-            )
-            .slice(0,2)
-            .toUpperCase(),
-
-
-          color:
-            'var(--primary)',
-
-
-          avatar_url:
-            p?.avatar_url || null,
-
-
-          time:
-            new Date(
-              m.created_at
-            )
-            .toLocaleTimeString([],{
-              hour:'2-digit',
-              minute:'2-digit'
-            }),
-
-
-          text:
-            m.content
-
-        }
-
-
-      })
-
-
-
-      setThreads(prev=>({
-
-        ...prev,
-
-        [activeChannel]:
-          formatted
-
-      }))
-
-
+          [activeChannel]:
+            formatted,
+        })
+      )
     }
-
-
 
     loadMessages()
 
-
-
     const channel =
       supabase
-      .channel(
-        `messages-${planet.id}-${activeChannel}`
-      )
-      .on(
-        'postgres_changes',
-        {
-          event:'INSERT',
-          schema:'public',
-          table:'messages',
-          filter:
-          `planet_id=eq.${planet.id}`
-        },
-        ()=>{
+        .channel(
+          `messages-${planet.id}-${activeChannel}`
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter:
+              `planet_id=eq.${planet.id}`,
+          },
+          () => {
+            loadMessages()
+          }
+        )
+        .subscribe()
 
-          loadMessages()
-
-        }
-      )
-      .subscribe()
-
-
-
-    return ()=>{
-
+    return () => {
       supabase.removeChannel(
         channel
       )
-
     }
-
-
-
-  },[
+  }, [
     planet.id,
-    activeChannel
+    activeChannel,
   ])
-    // TYPING
 
-  useEffect(()=>{
+  // =====================================================
+  // TYPING
+  // =====================================================
 
-
+  useEffect(() => {
     const channel =
       supabase
+        .channel(
+          `typing-${planet.id}-${activeChannel}`
+        )
+        .on(
+          'broadcast',
+          {
+            event: 'typing',
+          },
+          ({ payload }) => {
+            setTypingUsers(
+              prev => {
+                if (
+                  prev.includes(
+                    payload.username
+                  )
+                ) {
+                  return prev
+                }
+
+                return [
+                  ...prev,
+                  payload.username,
+                ]
+              }
+            )
+
+            setTimeout(
+              () => {
+                setTypingUsers(
+                  prev =>
+                    prev.filter(
+                      x =>
+                        x !==
+                        payload.username
+                    )
+                )
+              },
+              2000
+            )
+          }
+        )
+        .subscribe()
+
+    return () => {
+      supabase.removeChannel(
+        channel
+      )
+    }
+  }, [
+    planet.id,
+    activeChannel,
+  ])
+
+  function handleTyping() {
+    if (!profile) return
+
+    supabase
       .channel(
         `typing-${planet.id}-${activeChannel}`
       )
-      .on(
-        'broadcast',
-        {
-          event:'typing'
+      .send({
+        type: 'broadcast',
+
+        event: 'typing',
+
+        payload: {
+          username:
+            profile.nickname ||
+            profile.username,
         },
-        ({payload})=>{
-
-
-          setTypingUsers(prev=>{
-
-
-            if(
-              prev.includes(payload.username)
-            )
-            return prev
-
-
-
-            return [
-              ...prev,
-              payload.username
-            ]
-
-          })
-
-
-
-          setTimeout(()=>{
-
-
-            setTypingUsers(prev=>
-
-              prev.filter(
-                x=>x!==payload.username
-              )
-
-            )
-
-
-          },2000)
-
-
-        }
-      )
-      .subscribe()
-
-
-
-    return ()=>{
-
-      supabase.removeChannel(
-        channel
-      )
-
-    }
-
-
-  },[
-    planet.id,
-    activeChannel
-  ])
-
-
-
-
-
-  function handleTyping(){
-
-
-    if(!profile)
-      return
-
-
-
-    supabase
-    .channel(
-      `typing-${planet.id}-${activeChannel}`
-    )
-    .send({
-
-      type:'broadcast',
-
-      event:'typing',
-
-      payload:{
-
-        username:
-          profile.nickname ||
-          profile.username
-
-      }
-
-    })
-
-
+      })
   }
 
-
-
-
-
+  // =====================================================
+  // SEND MESSAGE
+  // =====================================================
 
   async function handleSend(
-    text:string
-  ){
-
-
+    text: string
+  ) {
     const {
-      data:{user}
+      data: { user },
     } =
-    await supabase.auth.getUser()
+      await supabase.auth.getUser()
 
+    if (!user) return
 
-
-    if(!user)
-      return
-
-
-
-    const {error} =
+    const { error } =
       await supabase
-      .from('messages')
-      .insert({
+        .from('messages')
+        .insert({
+          user_id:
+            user.id,
 
-        user_id:user.id,
+          planet_id:
+            planet.id,
 
-        planet_id:planet.id,
+          channel:
+            activeChannel,
 
-        channel:activeChannel,
+          content:
+            text,
+        })
 
-        content:text
-
-      })
-
-
-
-    if(error){
-
+    if (error) {
       console.log(
         'SEND ERROR:',
         error
       )
+    }
+  }
 
+  // =====================================================
+  // DELETE MESSAGE
+  // =====================================================
+
+  async function handleDeleteMessage(
+    id: string
+  ) {
+    console.log(
+      'DELETE CLICKED:',
+      id
+    )
+
+    const {
+      data: { user },
+    } =
+      await supabase.auth.getUser()
+
+    console.log(
+      'CURRENT USER:',
+      user?.id
+    )
+
+    if (!user) return
+
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from('messages')
+        .delete()
+        .eq(
+          'id',
+          id
+        )
+        .eq(
+          'user_id',
+          user.id
+        )
+        .select()
+
+    console.log(
+      'DELETE DATA:',
+      data
+    )
+
+    console.log(
+      'DELETE ERROR:',
+      error
+    )
+
+    if (error) {
+      alert(
+        "You can't delete this message"
+      )
+
+      return
     }
 
-
-  }
-
-async function handleDeleteMessage(id: string) {
-
-  console.log("DELETE CLICKED:", id)
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-
-  console.log("CURRENT USER:", user?.id)
-
-  if (!user) return
-
-
-const { data, error } =
-  await supabase
-    .from("messages")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select()
-
-  console.log("DELETE DATA:", data)
-  console.log("DELETE ERROR:", error)
-
-
-  if (error) {
-    alert("You can't delete this message")
-    return
-  }
-
-
-  if (!data || data.length === 0) {
-    alert("Delete blocked by permission")
-    return
-  }
-
-
-  setThreads(prev => ({
-    ...prev,
-    [activeChannel]:
-      (prev[activeChannel] ?? []).filter(
-        m => m.id !== id
+    if (
+      !data ||
+      data.length === 0
+    ) {
+      alert(
+        'Delete blocked by permission'
       )
-  }))
 
-}
+      return
+    }
 
+    setThreads(
+      prev => ({
+        ...prev,
+
+        [activeChannel]:
+          (
+            prev[
+              activeChannel
+            ] ?? []
+          ).filter(
+            m =>
+              m.id !== id
+          ),
+      })
+    )
+  }
+
+  // =====================================================
+  // SHARED SIDEBAR PROPS
+  // =====================================================
+
+  const sidebarProps = {
+    planet: {
+      ...planet,
+      members:
+        memberCount,
+    },
+
+    activeChannel,
+
+    onSelectChannel:
+      (channel: string) => {
+        setActiveChannel(
+          channel
+        )
+
+        setMobileView(
+          'chat'
+        )
+      },
+
+    isMember:
+      planetMembers.some(
+        m =>
+          m.user_id ===
+          profile?.id
+      ),
+
+    onJoin:
+      joinPlanet,
+  }
+
+  // =====================================================
+  // RENDER
+  // =====================================================
 
   return (
-
     <main className="flex h-dvh overflow-hidden">
 
+      {/* ================================================= */}
+      {/* DESKTOP — ORIGINAL LAYOUT, UNTOUCHED */}
+      {/* ================================================= */}
 
-      <AppNav />
+      <div className="hidden md:flex md:flex-1 md:min-w-0">
 
+        <AppNav />
 
-      <PlanetSidebar
+        <PlanetSidebar
+          planet={{
+            ...planet,
+            members:
+              memberCount,
+          }}
+          activeChannel={
+            activeChannel
+          }
+          onSelectChannel={
+            setActiveChannel
+          }
+          isMember={
+            planetMembers.some(
+              m =>
+                m.user_id ===
+                profile?.id
+            )
+          }
+          onJoin={
+            joinPlanet
+          }
+        />
 
-        planet={{
-          ...planet,
-          members:memberCount
-        }}
+        <ChatView
+          channel={
+            activeChannel
+          }
+          planetName={
+            planet.name
+          }
+          messages={
+            threads[
+              activeChannel
+            ] ?? []
+          }
+          typingUsers={
+            typingUsers
+          }
+          onSend={
+            handleSend
+          }
+          onTyping={
+            handleTyping
+          }
+          onDeleteMessage={
+            handleDeleteMessage
+          }
+          currentUserId={
+            profile?.id
+          }
+          onToggleSidebar={
+            () => {}
+          }
+        />
 
-        activeChannel={
-          activeChannel
-        }
+        <MembersPanel
+          members={
+            planetMembers
+          }
+          typingUsers={
+            typingUsers
+          }
+        />
 
-        onSelectChannel={
-          setActiveChannel
-        }
+      </div>
 
-        isMember={
-          planetMembers.some(
-            m=>m.user_id===profile?.id
-          )
-        }
+      {/* ================================================= */}
+      {/* MOBILE — ONLY MOBILE */}
+      {/* ================================================= */}
 
-        onJoin={
-          joinPlanet
-        }
+      <div className="flex min-w-0 flex-1 flex-col md:hidden">
 
-      />
+        <div className="min-h-0 flex-1">
 
-<ChatView
+          {/* CHAT */}
 
-channel={activeChannel}
+          {mobileView ===
+            'chat' && (
+            <div className="flex h-full min-h-0 flex-col">
 
-planetName={planet.name}
+              <ChatView
+                channel={
+                  activeChannel
+                }
+                planetName={
+                  planet.name
+                }
+                messages={
+                  threads[
+                    activeChannel
+                  ] ?? []
+                }
+                typingUsers={
+                  typingUsers
+                }
+                onSend={
+                  handleSend
+                }
+                onTyping={
+                  handleTyping
+                }
+                onDeleteMessage={
+                  handleDeleteMessage
+                }
+                currentUserId={
+                  profile?.id
+                }
+                onToggleSidebar={() =>
+                  setMobileView(
+                    'channels'
+                  )
+                }
+              />
 
-messages={threads[activeChannel] ?? []}
+            </div>
+          )}
 
-typingUsers={typingUsers}
+          {/* CHANNELS */}
 
-onSend={handleSend}
+          {mobileView ===
+            'channels' && (
+            <div className="flex h-full min-h-0 flex-col">
 
-onTyping={handleTyping}
+              <PlanetSidebar
+                {...sidebarProps}
+              />
 
-onDeleteMessage={handleDeleteMessage}
+            </div>
+          )}
 
-currentUserId={profile?.id}
+          {/* MEMBERS */}
 
-onToggleSidebar={()=>{}}
+          {mobileView ===
+            'members' && (
+            <div className="flex h-full min-h-0 flex-col">
 
-/>
+              <MembersPanel
+                members={
+                  planetMembers
+                }
+                typingUsers={
+                  typingUsers
+                }
+              />
 
+            </div>
+          )}
 
-      <MembersPanel
+        </div>
 
-        members={
-          planetMembers
-        }
+        {/* MOBILE BOTTOM BAR */}
 
-        typingUsers={
-          typingUsers
-        }
+        <nav
+          className="
+            flex
+            h-16
+            shrink-0
+            items-center
+            justify-around
+            border-t
+            border-border
+            bg-background/95
+            px-2
+            backdrop-blur-xl
+          "
+          aria-label="Planet navigation"
+        >
 
-      />
+          {/* CHANNELS */}
 
+          <button
+            type="button"
+            onClick={() =>
+              setMobileView(
+                'channels'
+              )
+            }
+            className={`
+              flex
+              min-w-20
+              flex-col
+              items-center
+              justify-center
+              gap-1
+              rounded-xl
+              px-3
+              py-2
+              text-xs
+              transition-colors
+              ${
+                mobileView ===
+                'channels'
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground'
+              }
+            `}
+          >
+            <span className="text-base">
+              #
+            </span>
+
+            <span>
+              Channels
+            </span>
+          </button>
+
+          {/* CHAT */}
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileView(
+                'chat'
+              )
+            }
+            className={`
+              flex
+              min-w-20
+              flex-col
+              items-center
+              justify-center
+              gap-1
+              rounded-xl
+              px-3
+              py-2
+              text-xs
+              transition-colors
+              ${
+                mobileView ===
+                'chat'
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground'
+              }
+            `}
+          >
+            <span className="text-base">
+              💬
+            </span>
+
+            <span>
+              Chat
+            </span>
+          </button>
+
+          {/* MEMBERS */}
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileView(
+                'members'
+              )
+            }
+            className={`
+              flex
+              min-w-20
+              flex-col
+              items-center
+              justify-center
+              gap-1
+              rounded-xl
+              px-3
+              py-2
+              text-xs
+              transition-colors
+              ${
+                mobileView ===
+                'members'
+                  ? 'bg-primary/15 text-primary'
+                  : 'text-muted-foreground'
+              }
+            `}
+          >
+            <span className="text-base">
+              👥
+            </span>
+
+            <span>
+              Members
+            </span>
+          </button>
+
+        </nav>
+
+      </div>
 
     </main>
-
   )
-
-
 }

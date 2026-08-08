@@ -167,3 +167,74 @@
 .animate-twinkle { animation: twinkle 4s ease-in-out infinite; }
 .animate-spin-slow { animation: spin-slow 40s linear infinite; }
 .animate-rise { animation: rise 0.6s ease-out both; }
+/* =========================================================
+   QLLOSE RESPONSIVE LAYER
+   Desktop stays unchanged.
+   Mobile gets its own layout behavior.
+   ========================================================= */
+
+@media (max-width: 767px) {
+  html,
+  body {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  /* Prevent mobile browsers from forcing horizontal overflow */
+  *,
+  *::before,
+  *::after {
+    min-width: 0;
+  }
+
+  /* Better mobile tap behavior */
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent iOS zoom when focusing inputs */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* Safe area for phones with a bottom gesture bar */
+  .mobile-safe-bottom {
+    padding-bottom: max(
+      0.75rem,
+      env(safe-area-inset-bottom)
+    );
+  }
+
+  /* Mobile scroll containers */
+  .mobile-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .mobile-compact {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Landscape phones */
+@media (max-width: 900px) and (orientation: landscape) {
+  body {
+    min-height: 100dvh;
+  }
+}
