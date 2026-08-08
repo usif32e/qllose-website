@@ -1,5 +1,6 @@
 import type { Member } from '@/lib/qllose-data'
 import { Avatar } from '@/components/qllose/avatar'
+import Link from 'next/link'
 
 interface MembersPanelProps {
   members: Member[]
@@ -137,10 +138,12 @@ function MemberGroup({
         {members.map((m)=>(
 
 
-          <li
-            key={m.user_id}
-            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-secondary/70"
-          >
+   <Link
+  key={m.user_id}
+  href={`/profile/${m.user_id}`}
+  onClick={() => console.log("PROFILE ID:", m.user_id)}
+  className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-secondary/70"
+>
 
 
 
@@ -180,6 +183,7 @@ function MemberGroup({
 
 
 
+
             <div className="min-w-0">
 
 
@@ -197,7 +201,7 @@ function MemberGroup({
 
 
 
-          </li>
+          </Link>
 
 
         ))}

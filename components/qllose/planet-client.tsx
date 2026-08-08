@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Planet, Message, Member } from '@/lib/qllose-data'
 
 import { supabase } from '@/lib/supabase'
@@ -50,7 +50,7 @@ export function PlanetClient({
 
   const [typingUsers,setTypingUsers] =
     useState<string[]>([])
-
+const onlineIdsRef = useRef<Set<string>>(new Set())
 
 
   async function loadProfile(){
@@ -166,8 +166,7 @@ export function PlanetClient({
           role:
             m.role || 'Member',
 
-
-          online:true,
+         online: onlineIdsRef.current.has(m.user_id),
 
 
           avatar_url:
@@ -187,6 +186,99 @@ export function PlanetClient({
     )
 
   }
+
+
+useEffect(() => {
+  if (!planet?.id || !profile?.id) return
+
+  const presenceChannel = supabase.channel(
+    `planet-presence-${planet.id}`,
+    {
+      config: {
+        presence: {
+          key: profile.id,
+        },
+      },
+    }
+  )
+
+  const updateOnlineStatus = () => {
+  const state = presenceChannel.presenceState()
+
+  const onlineIds = new Set<string>()
+
+  Object.entries(state).forEach(([key, presences]) => {
+    onlineIds.add(key)
+
+    ;(presences as any[]).forEach(presence => {
+      if (presence.user_id) {
+        onlineIds.add(presence.user_id)
+      }
+    })
+  })
+
+  setPlanetMembers(prev =>
+    prev.map(member => ({
+      ...member,
+      online: onlineIds.has(member.user_id),
+    }))
+  )
+}
+
+  presenceChannel
+    .on(
+      'presence',
+      { event: 'sync' },
+      updateOnlineStatus
+    )
+    .on(
+      'presence',
+      { event: 'join' },
+      updateOnlineStatus
+    )
+    .on(
+      'presence',
+      { event: 'leave' },
+      updateOnlineStatus
+    )
+ .subscribe(async status => {
+  if (status === 'SUBSCRIBED') {
+
+    await presenceChannel.track({
+      user_id: profile.id,
+    })
+
+    // اعتبر المستخدم الحالي Online فور نجاح الاتصال
+    onlineIdsRef.current.add(profile.id)
+
+    setPlanetMembers(prev =>
+      prev.map(member => ({
+        ...member,
+        online:
+          member.user_id === profile.id
+            ? true
+            : onlineIdsRef.current.has(
+                member.user_id
+              ),
+      }))
+    )
+
+    // نقرأ Presence الحقيقي بعد الـ sync
+    setTimeout(() => {
+      updateOnlineStatus()
+    }, 300)
+
+  }
+})
+
+  return () => {
+    supabase.removeChannel(
+      presenceChannel
+    )
+  }
+}, [planet?.id, profile?.id])
+
+
   async function joinPlanet(){
 
     const {
@@ -595,8 +687,52 @@ export function PlanetClient({
 
   }
 
+async function handleDeleteMessage(id: string) {
+
+  console.log("DELETE CLICKED:", id)
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser()
+
+  console.log("CURRENT USER:", user?.id)
+
+  if (!user) return
 
 
+const { data, error } =
+  await supabase
+    .from("messages")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+
+  console.log("DELETE DATA:", data)
+  console.log("DELETE ERROR:", error)
+
+
+  if (error) {
+    alert("You can't delete this message")
+    return
+  }
+
+
+  if (!data || data.length === 0) {
+    alert("Delete blocked by permission")
+    return
+  }
+
+
+  setThreads(prev => ({
+    ...prev,
+    [activeChannel]:
+      (prev[activeChannel] ?? []).filter(
+        m => m.id !== id
+      )
+  }))
+
+}
 
 
   return (
@@ -634,40 +770,27 @@ export function PlanetClient({
 
       />
 
+<ChatView
 
+channel={activeChannel}
 
-      <ChatView
+planetName={planet.name}
 
-        channel={
-          activeChannel
-        }
+messages={threads[activeChannel] ?? []}
 
-        planetName={
-          planet.name
-        }
+typingUsers={typingUsers}
 
-        messages={
-          threads[activeChannel] ?? []
-        }
+onSend={handleSend}
 
-        typingUsers={
-          typingUsers
-        }
+onTyping={handleTyping}
 
-        onSend={
-          handleSend
-        }
+onDeleteMessage={handleDeleteMessage}
 
-        onTyping={
-          handleTyping
-        }
+currentUserId={profile?.id}
 
-        onToggleSidebar={
-          ()=>{}
-        }
+onToggleSidebar={()=>{}}
 
-      />
-
+/>
 
 
       <MembersPanel

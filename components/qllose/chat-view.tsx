@@ -2,18 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { Hash, Globe, Menu, Send, Smile, Plus } from 'lucide-react'
+import { Hash, Globe, Send, Smile, Plus, Trash2 } from 'lucide-react'
+
 import type { Message } from '@/lib/qllose-data'
 import { Avatar } from '@/components/qllose/avatar'
 
+
 interface ChatViewProps {
-  channel: string
-  planetName: string
-  messages: Message[]
-  typingUsers: string[]
-  onSend: (text: string) => void
-  onTyping: () => void
-  onToggleSidebar: () => void
+
+channel: string
+
+planetName: string
+
+messages: Message[]
+
+typingUsers: string[]
+
+onSend: (text: string) => void
+
+onTyping: () => void
+
+onDeleteMessage?: (id: string) => void
+
+currentUserId?: string
+
+onToggleSidebar: () => void
+
 }
 
 export function ChatView({
@@ -23,234 +37,324 @@ export function ChatView({
   typingUsers,
   onSend,
   onTyping,
+  onDeleteMessage,
+  currentUserId,
   onToggleSidebar,
 }: ChatViewProps) {
 
-  const [draft, setDraft] = useState('')
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const [draft,setDraft] = useState('')
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    })
-  }, [messages, typingUsers])
+  const scrollRef =
+    useRef<HTMLDivElement | null>(null)
 
 
-  function submit(e: FormEvent) {
-    e.preventDefault()
+useEffect(()=>{
 
-    const text = draft.trim()
 
-    if (!text) return
+scrollRef.current?.scrollTo({
 
-    onSend(text)
-    setDraft('')
-  }
+top:
+scrollRef.current.scrollHeight,
 
+behavior:'smooth'
 
-  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+})
 
-    if (
-      e.key === 'Enter' &&
-      !e.shiftKey &&
-      !e.nativeEvent.isComposing &&
-      e.keyCode !== 229
-    ) {
-      e.preventDefault()
-      submit(e)
-    }
 
-  }
+},[
+messages,
+typingUsers
+])
 
 
-  const Icon = channel === 'Global' ? Globe : Hash
 
 
-  return (
 
-    <section className="flex h-full min-w-0 flex-1 flex-col">
+function submit(e:FormEvent){
 
 
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3.5 backdrop-blur-xl">
+e.preventDefault()
 
-        <button
-          onClick={onToggleSidebar}
-          className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary md:hidden"
-        >
-          <Menu className="size-5" />
-        </button>
 
+const text =
+draft.trim()
 
-        <Icon className="size-5 text-muted-foreground" />
 
+if(!text)
+return
 
-        <div>
 
-          <h1 className="text-sm font-semibold">
-            {channel}
-          </h1>
 
-          <p className="text-xs text-muted-foreground">
-            {planetName}
-          </p>
+onSend(text)
 
-        </div>
 
-      </header>
+setDraft('')
 
 
+}
 
-      <div
-        ref={scrollRef}
-        className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-6"
-      >
 
 
-        {messages.map((m) => (
 
-          <div key={m.id} className="flex gap-3">
 
+function handleKeyDown(
+e:KeyboardEvent
+){
 
-            {m.avatar_url ? (
 
-              <img
-                src={m.avatar_url}
-                alt={m.author}
-                className="size-10 rounded-full object-cover"
-              />
+if(
 
-            ) : (
+e.key === 'Enter' &&
 
-              <Avatar
-                initials={m.initials}
-                color={m.color}
-                size={40}
-              />
+!e.shiftKey &&
 
-            )}
+!e.nativeEvent.isComposing &&
 
+e.keyCode !== 229
 
+){
 
-            <div className="min-w-0 flex-1">
 
+e.preventDefault()
 
-              <div className="flex items-baseline gap-2">
 
-                <span className="text-sm font-semibold">
-                  {m.author}
-                </span>
+submit(e)
 
+}
 
-                <span className="text-xs text-muted-foreground">
-                  {m.time}
-                </span>
 
-              </div>
+}
 
 
 
-              <p className="mt-0.5 text-sm leading-relaxed text-foreground/90">
-                {m.text}
-              </p>
+const Icon =
+channel === 'Global'
+?
+Globe
+:
+Hash
 
 
-            </div>
 
 
-          </div>
 
-        ))}
+return (
 
 
+<section className="flex flex-1 flex-col overflow-hidden">
 
-        {typingUsers.length > 0 && (
 
-          <div className="text-xs text-muted-foreground">
+<div className="flex items-center gap-2 border-b border-border p-4">
 
-            {typingUsers.join(', ')} typing…
 
-          </div>
+<Icon className="size-5"/>
 
-        )}
 
+<h2 className="font-semibold">
 
+{planetName}
 
-      </div>
+</h2>
 
 
+</div>
 
 
-      <form
-        onSubmit={submit}
-        className="px-4 pb-5 pt-1 sm:px-6"
-      >
 
 
-        <div className="flex items-end gap-2 rounded-2xl border border-input bg-background/50 px-3 py-2">
 
+<div
+ref={scrollRef}
+className="flex-1 space-y-4 overflow-y-auto p-4"
+>
 
-          <button type="button">
-            <Plus className="size-5" />
-          </button>
 
+{messages.map((m)=>(
 
 
-          <textarea
+<div
+key={m.id}
+className="flex gap-3"
+>
 
-            value={draft}
 
-            onChange={(e)=>{
+<Avatar
+  image={m.avatar_url ?? undefined}
+  initials={m.initials}
+  color={m.color}
+/>
 
-              setDraft(e.target.value)
 
-              onTyping()
+<div className="flex-1">
 
-            }}
 
-            onKeyDown={handleKeyDown}
+<div className="flex items-center gap-2">
 
-            rows={1}
 
-            placeholder={`Message #${channel}`}
+<span className="font-medium">
 
-            className="flex-1 resize-none bg-transparent outline-none"
+{m.author}
 
-          />
+</span>
 
 
 
-          <button type="button">
+<span className="text-xs text-muted-foreground">
 
-            <Smile className="size-5" />
+{m.time}
 
-          </button>
+</span>
 
 
 
-          <button
+<button
 
-            type="submit"
+onClick={() => onDeleteMessage?.(m.id)}
 
-            disabled={!draft.trim()}
+className="ml-auto text-muted-foreground hover:text-red-500"
 
-            className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
+title="Delete message"
 
-          >
+>
 
-            <Send className="size-4" />
+<Trash2 className="size-4"/>
 
-          </button>
+</button>
 
 
-        </div>
 
+</div>
 
-      </form>
 
 
-    </section>
 
-  )
+<p className="mt-1 text-sm leading-relaxed text-foreground/90">
+
+{m.text}
+
+</p>
+
+
+
+</div>
+
+
+</div>
+
+
+))}
+
+
+
+
+
+{
+typingUsers.length > 0 && (
+
+
+<div className="text-xs text-muted-foreground">
+
+
+{typingUsers.join(', ')} typing…
+
+</div>
+
+
+)
+}
+
+
+
+</div>
+
+
+
+
+
+
+<form
+
+onSubmit={submit}
+
+className="px-4 pb-5 pt-1 sm:px-6"
+
+>
+
+
+
+<div className="flex items-end gap-2 rounded-2xl border border-input bg-background/50 px-3 py-2">
+
+
+
+<button type="button">
+
+<Plus className="size-5"/>
+
+</button>
+
+
+
+
+<textarea
+
+value={draft}
+
+onChange={(e)=>{
+
+setDraft(e.target.value)
+
+onTyping()
+
+}}
+
+onKeyDown={handleKeyDown}
+
+rows={1}
+
+placeholder={`Message #${channel}`}
+
+className="flex-1 resize-none bg-transparent outline-none"
+
+/>
+
+
+
+
+<button type="button">
+
+<Smile className="size-5"/>
+
+</button>
+
+
+
+
+
+<button
+
+type="submit"
+
+disabled={!draft.trim()}
+
+className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground disabled:opacity-40"
+
+>
+
+<Send className="size-4"/>
+
+</button>
+
+
+
+</div>
+
+
+</form>
+
+
+</section>
+
+
+)
 
 }

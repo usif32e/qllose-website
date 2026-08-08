@@ -1,27 +1,40 @@
-import type { InputHTMLAttributes } from 'react'
-import { cn } from '@/lib/utils'
+import { InputHTMLAttributes } from 'react'
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string
   id: string
+  label: string
 }
 
-export function Field({ label, id, className, ...props }: FieldProps) {
+export function Field({
+  id,
+  label,
+  value,
+  onChange,
+  ...props
+}: FieldProps) {
+
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
+
+      <label className="text-sm font-medium">
         {label}
       </label>
 
       <input
+        {...props}
         id={id}
         name={id}
-        className={cn(
-          'h-11 w-full rounded-xl border border-input bg-background/40 px-3.5 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ring focus:ring-3 focus:ring-ring/30',
-          className,
-        )}
-        {...props}
+        {...(onChange
+          ? {
+              value: value ?? '',
+              onChange,
+            }
+          : {
+              defaultValue: value ?? '',
+            })}
+        className="h-11 rounded-xl border px-4"
       />
+
     </div>
   )
 }

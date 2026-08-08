@@ -1,11 +1,9 @@
 // Centralized Qllose data types and fallback data
 
-
 export type PlanetId =
   | 'creator'
   | 'gamer'
   | 'business'
-
 
 
 export interface Planet {
@@ -25,10 +23,10 @@ export interface Planet {
   members: number
 
   accent: string
+
   accent2: string
 
 }
-
 
 
 
@@ -42,7 +40,7 @@ export const planets: Planet[] = [
     tagline:'For the people who build the future.',
 
     description:
-    'A universe for developers, designers, editors and artists shipping their craft every day.',
+      'A universe for developers, designers, editors and artists shipping their craft every day.',
 
     audience:[
       'Developers',
@@ -53,7 +51,6 @@ export const planets: Planet[] = [
     ],
 
     channels:[
-
       'Global',
       'Web Development',
       'Frontend',
@@ -68,7 +65,6 @@ export const planets: Planet[] = [
       'Artificial Intelligence',
       'Open Source',
       'Freelancing'
-
     ],
 
     members:0,
@@ -86,12 +82,10 @@ export const planets: Planet[] = [
     name:'Gamer Planet',
 
     tagline:
-    'Where teams, friends and legends meet.',
-
+      'Where teams, friends and legends meet.',
 
     description:
-    'Competitive players and gaming communities finding their squad across every title.',
-
+      'Competitive players and gaming communities finding their squad across every title.',
 
     audience:[
       'Competitive players',
@@ -100,9 +94,7 @@ export const planets: Planet[] = [
       'Friends'
     ],
 
-
     channels:[
-
       'Global',
       'Valorant',
       'Counter Strike',
@@ -115,19 +107,14 @@ export const planets: Planet[] = [
       'Call of Duty',
       'Rocket League',
       'Apex Legends'
-
     ],
 
-
     members:0,
-
 
     accent:'var(--gamer)',
 
     accent2:'var(--gamer-2)',
-
   },
-
 
 
 
@@ -137,25 +124,19 @@ export const planets: Planet[] = [
     name:'Business Planet',
 
     tagline:
-    'Founders, freelancers and people building companies.',
-
+      'Founders, freelancers and people building companies.',
 
     description:
-    'Entrepreneurs, founders and professionals trading ideas, deals and momentum.',
-
+      'Entrepreneurs, founders and professionals trading ideas, deals and momentum.',
 
     audience:[
-
       'Entrepreneurs',
       'Founders',
       'Freelancers',
       'Professionals'
-
     ],
 
-
     channels:[
-
       'Global',
       'Startups',
       'Shopify',
@@ -166,29 +147,20 @@ export const planets: Planet[] = [
       'Investing',
       'SaaS',
       'Networking'
-
     ],
 
-
     members:0,
-
 
     accent:'var(--business)',
 
     accent2:'var(--business-2)',
-
   }
-
 
 ]
 
 
 
-
-
-export function getPlanet(
-  id:string
-){
+export function getPlanet(id:string){
 
   return planets.find(
     p=>p.id===id
@@ -200,10 +172,16 @@ export function getPlanet(
 
 
 
+// =====================
+// Messages
+// =====================
 
 export interface Message {
 
   id:string
+
+  // Added for delete permissions
+  user_id?:string
 
   author:string
 
@@ -228,15 +206,15 @@ export interface Message {
 
 
 
-
-
-// Members are loaded from Supabase
+// =====================
+// Members
+// =====================
 
 export interface Member {
 
-  user_id?:string
+user_id:string
 
-  name:string
+name:string
 
   initials:string
 
@@ -254,86 +232,74 @@ export interface Member {
 
 
 
-
-
-
 export const messagesByPlanet:
 Record<PlanetId,Message[]> = {
 
+  creator:[
 
-creator:[
+    {
+      id:'c1',
 
-{
+      author:'Maya Reyes',
 
-id:'c1',
+      initials:'MR',
 
-author:'Maya Reyes',
+      color:'var(--creator)',
 
-initials:'MR',
+      time:'09:41',
 
-color:'var(--creator)',
+      text:
+        'Just shipped the new design system tokens.',
 
-time:'09:41',
+    }
 
-text:
-'Just shipped the new design system tokens.',
-
-}
-
-],
+  ],
 
 
 
+  gamer:[
 
-gamer:[
+    {
+      id:'g1',
 
-{
+      author:'Kenji Tanaka',
 
-id:'g1',
+      initials:'KT',
 
-author:'Kenji Tanaka',
+      color:'var(--gamer)',
 
-initials:'KT',
+      time:'20:12',
 
-color:'var(--gamer)',
+      text:
+        'Ranked grind tonight? Need one more for a full stack.',
 
-time:'20:12',
+    }
 
-text:
-'Ranked grind tonight? Need one more for a full stack.',
-
-}
-
-],
+  ],
 
 
 
+  business:[
 
-business:[
+    {
+      id:'b1',
 
-{
+      author:'Priya Nair',
 
-id:'b1',
+      initials:'PN',
 
-author:'Priya Nair',
+      color:'var(--business)',
 
-initials:'PN',
+      time:'11:02',
 
-color:'var(--business)',
+      text:
+        'Closed our first paying customers this week.',
 
-time:'11:02',
+    }
 
-text:
-'Closed our first paying customers this week.',
+  ]
 
 }
-
-]
-
-
-}
-
-
 
 
 
@@ -341,41 +307,39 @@ text:
 
 export const currentUser = {
 
-username:'nova',
+  username:'nova',
 
-displayName:'Nova Sterling',
+  displayName:'Nova Sterling',
 
-initials:'NS',
+  initials:'NS',
 
-email:'nova@qllose.space',
+  email:'nova@qllose.space',
 
-bio:
-'Product designer exploring the edges of the universe.',
+  bio:
+    'Product designer exploring the edges of the universe.',
 
-favoritePlanet:'Creator Planet',
+  favoritePlanet:'Creator Planet',
 
-joinDate:'March 2025',
+  joinDate:'March 2025',
 
+  stats:{
 
-stats:{
+    messages:1284,
 
-messages:1284,
+    planets:3,
 
-planets:3,
+    channels:12
 
-channels:12
-
-}
-
+  }
 
 }
-
 
 
 
 
 
 // Temporary export for old imports
+
 export const membersByPlanet = {
 
   creator:[],
