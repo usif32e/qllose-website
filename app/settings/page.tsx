@@ -67,14 +67,9 @@ export default function SettingsPage() {
 
     })
 
-
-
-  useEffect(()=>{
-
-    loadProfile()
-
-  },[])
-
+useEffect(() => {
+  loadProfile()
+}, [])
 
 
 

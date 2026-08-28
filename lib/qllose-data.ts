@@ -175,33 +175,32 @@ export function getPlanet(id:string){
 // =====================
 // Messages
 // =====================
-
 export interface Message {
+  id: string
 
-  id:string
+  // Delete permissions
+  user_id?: string
 
-  // Added for delete permissions
-  user_id?:string
+  author: string
+  initials: string
+  color: string
+  time: string
+  text: string
 
-  author:string
+  // Message type
+message_type?: 'text' | 'voice' | 'image'
 
-  initials:string
+  // Voice message data
+  audio_path?: string | null
+  audio_duration?: number | null
 
-  color:string
+  avatar_url?: string | null
 
-  time:string
-
-  text:string
-
-  avatar_url?:string|null
-
-  reactions?:{
-    emoji:string
-    count:number
+  reactions?: {
+    emoji: string
+    count: number
   }[]
-
 }
-
 
 
 

@@ -1,0 +1,6 @@
+warning: in the working copy of 'components/qllose/app-nav.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/qllose/chat-view.tsx', LF will be replaced by CRLF the next time Git touches it
+ components/qllose/app-nav.tsx       | 103 [32m++++++[m[31m-[m
+ components/qllose/chat-view.tsx     | 518 [32m+++++++++++++[m[31m-----------------------[m
+ components/qllose/planet-client.tsx | 353 [32m+++++++++++++++[m[31m---------[m
+ 3 files changed, 506 insertions(+), 468 deletions(-)

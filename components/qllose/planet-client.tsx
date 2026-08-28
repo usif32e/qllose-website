@@ -1,7 +1,10 @@
+
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import type { Planet, Message, Member } from '@/lib/qllose-data'
+import { Home, Bell, Settings } from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
 
@@ -494,48 +497,60 @@ export function PlanetClient({
                   m.user_id
               )
 
-            return {
-              id: m.id,
+         return {
+  id: m.id,
 
-              user_id:
-                m.user_id,
+  user_id:
+    m.user_id,
 
-              author:
-                p?.nickname ||
-                p?.username ||
-                'User',
+  author:
+    p?.nickname ||
+    p?.username ||
+    'User',
 
-              initials:
-                (
-                  p?.username ||
-                  'U'
-                )
-                  .slice(0, 2)
-                  .toUpperCase(),
+  initials:
+    (
+      p?.username ||
+      p?.nickname ||
+      'U'
+    )
+      .slice(0, 2)
+      .toUpperCase(),
 
-              color:
-                'var(--primary)',
+  color:
+    'var(--primary)',
 
-              avatar_url:
-                p?.avatar_url ||
-                null,
+  avatar_url:
+    p?.avatar_url ||
+    null,
 
-              time:
-                new Date(
-                  m.created_at
-                ).toLocaleTimeString(
-                  [],
-                  {
-                    hour:
-                      '2-digit',
-                    minute:
-                      '2-digit',
-                  }
-                ),
+  time:
+    new Date(
+      m.created_at
+    ).toLocaleTimeString(
+      [],
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+      }
+    ),
 
-              text:
-                m.content,
-            }
+  text:
+    m.content || '',
+
+  message_type:
+  m.message_type === 'voice'
+    ? 'voice'
+    : m.message_type === 'image'
+      ? 'image'
+      : 'text',
+
+  audio_path:
+    m.audio_path || null,
+
+  audio_duration:
+    m.audio_duration || null,
+}
           }
         )
 
@@ -551,25 +566,62 @@ export function PlanetClient({
 
     loadMessages()
 
-    const channel =
-      supabase
-        .channel(
-          `messages-${planet.id}-${activeChannel}`
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter:
-              `planet_id=eq.${planet.id}`,
-          },
-          () => {
-            loadMessages()
-          }
-        )
-        .subscribe()
+   const channel =
+  supabase
+    .channel(
+      `messages-${planet.id}-${activeChannel}`
+    )
+.on(
+  'postgres_changes',
+  {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'messages',
+    filter:
+      `planet_id=eq.${planet.id}`,
+  },
+  () => {
+    loadMessages()
+  }
+)
+.on(
+  'postgres_changes',
+  {
+    event: 'DELETE',
+    schema: 'public',
+    table: 'messages',
+    filter:
+      `planet_id=eq.${planet.id}`,
+  },
+  (payload) => {
+    console.log(
+      '🔥 REALTIME DELETE:',
+      payload
+    )
+
+    const deletedId =
+      payload.old?.id
+
+    if (!deletedId) {
+      loadMessages()
+      return
+    }
+
+    setThreads(
+      prev => ({
+        ...prev,
+        [activeChannel]:
+          (
+            prev[activeChannel] ?? []
+          ).filter(
+            message =>
+              message.id !== deletedId
+          ),
+      })
+    )
+  }
+)
+    .subscribe()
 
     return () => {
       supabase.removeChannel(
@@ -700,96 +752,271 @@ export function PlanetClient({
     }
   }
 
-  // =====================================================
-  // DELETE MESSAGE
-  // =====================================================
 
-  async function handleDeleteMessage(
-    id: string
-  ) {
-    console.log(
-      'DELETE CLICKED:',
-      id
-    )
-
+async function handleSendVoice(
+  audioBlob: Blob,
+  duration: number,
+) {
+  try {
     const {
       data: { user },
-    } =
-      await supabase.auth.getUser()
-
-    console.log(
-      'CURRENT USER:',
-      user?.id
-    )
+    } = await supabase.auth.getUser()
 
     if (!user) return
 
-    const {
-      data,
-      error,
-    } =
+    const fileExtension =
+      audioBlob.type.includes('mp4')
+        ? 'mp4'
+        : audioBlob.type.includes('ogg')
+          ? 'ogg'
+          : 'webm'
+
+    const filePath =
+      `${planet.id}/${user.id}/${crypto.randomUUID()}.${fileExtension}`
+
+    const { error: uploadError } =
+      await supabase.storage
+        .from('voice-messages')
+        .upload(
+          filePath,
+          audioBlob,
+          {
+            contentType:
+              audioBlob.type ||
+              'audio/webm',
+            upsert: false,
+          },
+        )
+
+    if (uploadError) {
+      console.log(
+        'VOICE UPLOAD ERROR:',
+        uploadError,
+      )
+      return
+    }
+
+    const { error: messageError } =
       await supabase
         .from('messages')
-        .delete()
-        .eq(
-          'id',
-          id
-        )
-        .eq(
-          'user_id',
-          user.id
-        )
-        .select()
+        .insert({
+          user_id: user.id,
+          planet_id: planet.id,
+          channel: activeChannel,
+          content: '',
+          message_type: 'voice',
+          audio_path: filePath,
+          audio_duration: Math.round(duration),
+        })
+
+    if (messageError) {
+      console.log(
+        'VOICE MESSAGE ERROR:',
+        messageError,
+      )
+
+      await supabase.storage
+        .from('voice-messages')
+        .remove([filePath])
+
+      return
+    }
 
     console.log(
-      'DELETE DATA:',
-      data
+      'VOICE SENT SUCCESSFULLY',
     )
+  } catch (error) {
+    console.log(
+      'VOICE SEND ERROR:',
+      error,
+    )
+  }
+}
+
+
+async function handleSendImage(file: File) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image.')
+      return
+    }
+
+    const extension =
+      file.name.split('.').pop()?.toLowerCase() || 'jpg'
+
+    const filePath =
+      `${planet.id}/${user.id}/${crypto.randomUUID()}.${extension}`
+
+    const { error: uploadError } =
+      await supabase.storage
+        .from('chat-images')
+        .upload(filePath, file, {
+          contentType: file.type,
+          upsert: false,
+        })
+
+    if (uploadError) {
+      console.log(
+        'IMAGE UPLOAD ERROR:',
+        uploadError
+      )
+      return
+    }
+
+    const { data } =
+      supabase.storage
+        .from('chat-images')
+        .getPublicUrl(filePath)
+
+    const publicUrl = data.publicUrl
+
+    const { error: messageError } =
+      await supabase
+        .from('messages')
+        .insert({
+          user_id: user.id,
+          planet_id: planet.id,
+          channel: activeChannel,
+          content: publicUrl,
+          message_type: 'image',
+        })
+
+    if (messageError) {
+console.log(
+  'IMAGE MESSAGE ERROR:',
+  messageError
+)
+
+console.log(
+  'IMAGE MESSAGE ERROR DETAILS:',
+  JSON.stringify(
+    messageError,
+    null,
+    2
+  )
+)
+
+      await supabase.storage
+        .from('chat-images')
+        .remove([filePath])
+
+      return
+    }
 
     console.log(
-      'DELETE ERROR:',
+      'IMAGE SENT SUCCESSFULLY'
+    )
+  } catch (error) {
+    console.log(
+      'IMAGE SEND ERROR:',
       error
     )
+  }
+}
+  // =====================================================
+  // DELETE MESSAGE
+  // =====================================================
+async function handleDeleteMessage(
+  id: string
+) {
+  console.log(
+    'DELETE CLICKED:',
+    id
+  )
 
-    if (error) {
-      alert(
-        "You can't delete this message"
-      )
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-      return
-    }
+  console.log(
+    'CURRENT USER:',
+    user?.id
+  )
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
-      alert(
-        'Delete blocked by permission'
-      )
+  if (!user) return
 
-      return
-    }
+  let query = supabase
+    .from('messages')
+    .delete()
+    .eq('id', id)
 
-    setThreads(
-      prev => ({
-        ...prev,
-
-        [activeChannel]:
-          (
-            prev[
-              activeChannel
-            ] ?? []
-          ).filter(
-            m =>
-              m.id !== id
-          ),
-      })
+  // Member عادي:
+  // يقدر يحذف رسالته هو فقط
+  //
+  // Founder:
+  // يقدر يحذف أي رسالة في الـPlanet
+  if (!isFounder) {
+    query = query.eq(
+      'user_id',
+      user.id
     )
   }
 
+  const {
+    data,
+    error,
+  } = await query.select()
+
+  console.log(
+    'DELETE DATA:',
+    data
+  )
+
+  console.log(
+    'DELETE ERROR:',
+    error
+  )
+
+  if (error) {
+    alert(
+      "You can't delete this message"
+    )
+
+    return
+  }
+
+  if (
+    !data ||
+    data.length === 0
+  ) {
+    alert(
+      'Delete blocked by permission'
+    )
+
+    return
+  }
+
+  setThreads(
+    prev => ({
+      ...prev,
+
+      [activeChannel]:
+        (
+          prev[
+            activeChannel
+          ] ?? []
+        ).filter(
+          m =>
+            m.id !== id
+        ),
+    })
+  )
+}
   // =====================================================
   // SHARED SIDEBAR PROPS
   // =====================================================
+  const isFounder =
+    planetMembers.some(
+      member =>
+        member.user_id === profile?.id &&
+        member.role?.toLowerCase() === 'founder'
+    )
 
   const sidebarProps = {
     planet: {
@@ -861,38 +1088,20 @@ export function PlanetClient({
           }
         />
 
-        <ChatView
-          channel={
-            activeChannel
-          }
-          planetName={
-            planet.name
-          }
-          messages={
-            threads[
-              activeChannel
-            ] ?? []
-          }
-          typingUsers={
-            typingUsers
-          }
-          onSend={
-            handleSend
-          }
-          onTyping={
-            handleTyping
-          }
-          onDeleteMessage={
-            handleDeleteMessage
-          }
-          currentUserId={
-            profile?.id
-          }
-          onToggleSidebar={
-            () => {}
-          }
-        />
-
+<ChatView
+  channel={activeChannel}
+  planetName={planet.name}
+  messages={threads[activeChannel] ?? []}
+  typingUsers={typingUsers}
+  onSend={handleSend}
+  onSendVoice={handleSendVoice}
+  onSendImage={handleSendImage}
+  onTyping={handleTyping}
+  onDeleteMessage={handleDeleteMessage}
+  currentUserId={profile?.id}
+  isFounder={isFounder}
+  onToggleSidebar={() => {}}
+/>
         <MembersPanel
           members={
             planetMembers
@@ -918,39 +1127,20 @@ export function PlanetClient({
             'chat' && (
             <div className="flex h-full min-h-0 flex-col">
 
-              <ChatView
-                channel={
-                  activeChannel
-                }
-                planetName={
-                  planet.name
-                }
-                messages={
-                  threads[
-                    activeChannel
-                  ] ?? []
-                }
-                typingUsers={
-                  typingUsers
-                }
-                onSend={
-                  handleSend
-                }
-                onTyping={
-                  handleTyping
-                }
-                onDeleteMessage={
-                  handleDeleteMessage
-                }
-                currentUserId={
-                  profile?.id
-                }
-                onToggleSidebar={() =>
-                  setMobileView(
-                    'channels'
-                  )
-                }
-              />
+    <ChatView
+  channel={activeChannel}
+  planetName={planet.name}
+  messages={threads[activeChannel] ?? []}
+  typingUsers={typingUsers}
+  onSend={handleSend}
+  onSendVoice={handleSendVoice}
+  onSendImage={handleSendImage}
+  onTyping={handleTyping}
+  onDeleteMessage={handleDeleteMessage}
+  currentUserId={profile?.id}
+  isFounder={isFounder}
+  onToggleSidebar={() => setMobileView('channels')}
+/>
 
             </div>
           )}
@@ -988,8 +1178,6 @@ export function PlanetClient({
 
         </div>
 
-        {/* MOBILE BOTTOM BAR */}
-
         <nav
           className="
             flex
@@ -1000,11 +1188,32 @@ export function PlanetClient({
             border-t
             border-border
             bg-background/95
-            px-2
+            px-1
             backdrop-blur-xl
           "
-          aria-label="Planet navigation"
+          aria-label="Mobile navigation"
         >
+
+          {/* HOME */}
+
+          <Link
+            href="/planets"
+            aria-label="Home"
+            className="
+              flex
+              size-11
+              items-center
+              justify-center
+              rounded-xl
+              text-muted-foreground
+              transition-colors
+              hover:bg-secondary
+              hover:text-foreground
+            "
+          >
+            <Home className="size-5" />
+          </Link>
+
 
           {/* CHANNELS */}
 
@@ -1015,34 +1224,27 @@ export function PlanetClient({
                 'channels'
               )
             }
+            aria-label="Channels"
             className={`
               flex
-              min-w-20
-              flex-col
+              size-11
               items-center
               justify-center
-              gap-1
               rounded-xl
-              px-3
-              py-2
-              text-xs
               transition-colors
               ${
                 mobileView ===
                 'channels'
                   ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
             `}
           >
-            <span className="text-base">
+            <span className="text-xl leading-none">
               #
             </span>
-
-            <span>
-              Channels
-            </span>
           </button>
+
 
           {/* CHAT */}
 
@@ -1053,34 +1255,27 @@ export function PlanetClient({
                 'chat'
               )
             }
+            aria-label="Chat"
             className={`
               flex
-              min-w-20
-              flex-col
+              size-11
               items-center
               justify-center
-              gap-1
               rounded-xl
-              px-3
-              py-2
-              text-xs
               transition-colors
               ${
                 mobileView ===
                 'chat'
                   ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
             `}
           >
-            <span className="text-base">
+            <span className="text-lg">
               💬
             </span>
-
-            <span>
-              Chat
-            </span>
           </button>
+
 
           {/* MEMBERS */}
 
@@ -1091,36 +1286,72 @@ export function PlanetClient({
                 'members'
               )
             }
+            aria-label="Members"
             className={`
               flex
-              min-w-20
-              flex-col
+              size-11
               items-center
               justify-center
-              gap-1
               rounded-xl
-              px-3
-              py-2
-              text-xs
               transition-colors
               ${
                 mobileView ===
                 'members'
                   ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
             `}
           >
-            <span className="text-base">
+            <span className="text-lg">
               👥
-            </span>
-
-            <span>
-              Members
             </span>
           </button>
 
+
+          {/* NOTIFICATIONS */}
+
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+            className="
+              flex
+              size-11
+              items-center
+              justify-center
+              rounded-xl
+              text-muted-foreground
+              transition-colors
+              hover:bg-secondary
+              hover:text-foreground
+            "
+          >
+            <Bell className="size-5" />
+          </Link>
+
+
+          {/* SETTINGS */}
+
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="
+              flex
+              size-11
+              items-center
+              justify-center
+              rounded-xl
+              text-muted-foreground
+              transition-colors
+              hover:bg-secondary
+              hover:text-foreground
+            "
+          >
+            <Settings className="size-5" />
+          </Link>
+
         </nav>
+
+     
 
       </div>
 
