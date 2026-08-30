@@ -4,7 +4,14 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { Planet, Message, Member } from '@/lib/qllose-data'
-import { Home, Bell, Settings } from 'lucide-react'
+import {
+  Home,
+  Bell,
+  Settings,
+  Sparkles,
+  Users,
+  Hash,
+} from 'lucide-react'
 
 import { supabase } from '@/lib/supabase'
 
@@ -50,8 +57,96 @@ export function PlanetClient({
   const [mobileView, setMobileView] =
     useState<MobileView>('chat')
 
+  const [planetReady, setPlanetReady] =
+    useState(false)
+
+  // =====================================================
+  // INTERACTIVE ATMOSPHERE
+  // FRONTEND ONLY
+  // =====================================================
+
+  const [mousePosition, setMousePosition] =
+    useState({
+      x: 0,
+      y: 0,
+    })
+
+  const [isPointerInside, setIsPointerInside] =
+    useState(false)
+
   const onlineIdsRef =
     useRef<Set<string>>(new Set())
+
+  // =====================================================
+  // MOUSE INTERACTION
+  // =====================================================
+
+  useEffect(() => {
+    const handleMouseMove = (
+      event: MouseEvent
+    ) => {
+      const x =
+        (event.clientX /
+          window.innerWidth -
+          0.5) * 2
+
+      const y =
+        (event.clientY /
+          window.innerHeight -
+          0.5) * 2
+
+      setMousePosition({
+        x,
+        y,
+      })
+    }
+
+    const handleMouseEnter = () => {
+      setIsPointerInside(true)
+    }
+
+    const handleMouseLeave = () => {
+      setIsPointerInside(false)
+
+      setMousePosition({
+        x: 0,
+        y: 0,
+      })
+    }
+
+    window.addEventListener(
+      'mousemove',
+      handleMouseMove,
+      { passive: true }
+    )
+
+    window.addEventListener(
+      'mouseenter',
+      handleMouseEnter
+    )
+
+    window.addEventListener(
+      'mouseleave',
+      handleMouseLeave
+    )
+
+    return () => {
+      window.removeEventListener(
+        'mousemove',
+        handleMouseMove
+      )
+
+      window.removeEventListener(
+        'mouseenter',
+        handleMouseEnter
+      )
+
+      window.removeEventListener(
+        'mouseleave',
+        handleMouseLeave
+      )
+    }
+  }, [])
 
   // =====================================================
   // PROFILE
@@ -89,19 +184,6 @@ export function PlanetClient({
   // =====================================================
 
   async function loadMembers() {
-    /*
-     * IMPORTANT:
-     * We intentionally do NOT use:
-     *
-     * profiles(...)
-     *
-     * inside the planet_members query.
-     *
-     * We first get the member IDs, then get their
-     * profiles separately. This avoids relationship/RLS
-     * issues with Supabase nested selects.
-     */
-
     const {
       data: memberRows,
       error: membersError,
@@ -125,7 +207,10 @@ export function PlanetClient({
       return
     }
 
-    if (!memberRows || memberRows.length === 0) {
+    if (
+      !memberRows ||
+      memberRows.length === 0
+    ) {
       setPlanetMembers([])
       setMemberCount(0)
 
@@ -231,8 +316,14 @@ export function PlanetClient({
 
   useEffect(() => {
     async function init() {
+      setPlanetReady(false)
+
       await loadProfile()
       await loadMembers()
+
+      requestAnimationFrame(() => {
+        setPlanetReady(true)
+      })
     }
 
     init()
@@ -497,60 +588,64 @@ export function PlanetClient({
                   m.user_id
               )
 
-         return {
-  id: m.id,
+            return {
+              id: m.id,
 
-  user_id:
-    m.user_id,
+              user_id:
+                m.user_id,
 
-  author:
-    p?.nickname ||
-    p?.username ||
-    'User',
+              author:
+                p?.nickname ||
+                p?.username ||
+                'User',
 
-  initials:
-    (
-      p?.username ||
-      p?.nickname ||
-      'U'
-    )
-      .slice(0, 2)
-      .toUpperCase(),
+              initials:
+                (
+                  p?.username ||
+                  p?.nickname ||
+                  'U'
+                )
+                  .slice(0, 2)
+                  .toUpperCase(),
 
-  color:
-    'var(--primary)',
+              color:
+                'var(--primary)',
 
-  avatar_url:
-    p?.avatar_url ||
-    null,
+              avatar_url:
+                p?.avatar_url ||
+                null,
 
-  time:
-    new Date(
-      m.created_at
-    ).toLocaleTimeString(
-      [],
-      {
-        hour: '2-digit',
-        minute: '2-digit',
-      }
-    ),
+              time:
+                new Date(
+                  m.created_at
+                ).toLocaleTimeString(
+                  [],
+                  {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  }
+                ),
 
-  text:
-    m.content || '',
+              text:
+                m.content || '',
 
-  message_type:
-  m.message_type === 'voice'
-    ? 'voice'
-    : m.message_type === 'image'
-      ? 'image'
-      : 'text',
+              message_type:
+                m.message_type ===
+                'voice'
+                  ? 'voice'
+                  : m.message_type ===
+                      'image'
+                    ? 'image'
+                    : 'text',
 
-  audio_path:
-    m.audio_path || null,
+              audio_path:
+                m.audio_path ||
+                null,
 
-  audio_duration:
-    m.audio_duration || null,
-}
+              audio_duration:
+                m.audio_duration ||
+                null,
+            }
           }
         )
 
@@ -566,62 +661,66 @@ export function PlanetClient({
 
     loadMessages()
 
-   const channel =
-  supabase
-    .channel(
-      `messages-${planet.id}-${activeChannel}`
-    )
-.on(
-  'postgres_changes',
-  {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'messages',
-    filter:
-      `planet_id=eq.${planet.id}`,
-  },
-  () => {
-    loadMessages()
-  }
-)
-.on(
-  'postgres_changes',
-  {
-    event: 'DELETE',
-    schema: 'public',
-    table: 'messages',
-    filter:
-      `planet_id=eq.${planet.id}`,
-  },
-  (payload) => {
-    console.log(
-      '🔥 REALTIME DELETE:',
-      payload
-    )
+    const channel =
+      supabase
+        .channel(
+          `messages-${planet.id}-${activeChannel}`
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter:
+              `planet_id=eq.${planet.id}`,
+          },
+          () => {
+            loadMessages()
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'messages',
+            filter:
+              `planet_id=eq.${planet.id}`,
+          },
+          payload => {
+            console.log(
+              '🔥 REALTIME DELETE:',
+              payload
+            )
 
-    const deletedId =
-      payload.old?.id
+            const deletedId =
+              payload.old?.id
 
-    if (!deletedId) {
-      loadMessages()
-      return
-    }
+            if (!deletedId) {
+              loadMessages()
+              return
+            }
 
-    setThreads(
-      prev => ({
-        ...prev,
-        [activeChannel]:
-          (
-            prev[activeChannel] ?? []
-          ).filter(
-            message =>
-              message.id !== deletedId
-          ),
-      })
-    )
-  }
-)
-    .subscribe()
+            setThreads(
+              prev => ({
+                ...prev,
+
+                [activeChannel]:
+                  (
+                    prev[
+                      activeChannel
+                    ] ?? []
+                  ).filter(
+                    message =>
+                      message.id !==
+                      deletedId
+                  ),
+              })
+            )
+          }
+        )
+        .subscribe()
 
     return () => {
       supabase.removeChannel(
@@ -696,7 +795,7 @@ export function PlanetClient({
   function handleTyping() {
     if (!profile) return
 
-    supabase
+    void supabase
       .channel(
         `typing-${planet.id}-${activeChannel}`
       )
@@ -752,271 +851,343 @@ export function PlanetClient({
     }
   }
 
+  // =====================================================
+  // SEND VOICE
+  // =====================================================
 
-async function handleSendVoice(
-  audioBlob: Blob,
-  duration: number,
-) {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  async function handleSendVoice(
+    audioBlob: Blob,
+    duration: number,
+  ) {
+    try {
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser()
 
-    if (!user) return
+      if (!user) return
 
-    const fileExtension =
-      audioBlob.type.includes('mp4')
-        ? 'mp4'
-        : audioBlob.type.includes('ogg')
-          ? 'ogg'
-          : 'webm'
+      const fileExtension =
+        audioBlob.type.includes(
+          'mp4'
+        )
+          ? 'mp4'
+          : audioBlob.type.includes(
+                'ogg'
+              )
+            ? 'ogg'
+            : 'webm'
 
-    const filePath =
-      `${planet.id}/${user.id}/${crypto.randomUUID()}.${fileExtension}`
+      const filePath =
+        `${planet.id}/${user.id}/${crypto.randomUUID()}.${fileExtension}`
 
-    const { error: uploadError } =
-      await supabase.storage
-        .from('voice-messages')
-        .upload(
-          filePath,
-          audioBlob,
-          {
-            contentType:
-              audioBlob.type ||
-              'audio/webm',
-            upsert: false,
-          },
+      const {
+        error: uploadError,
+      } =
+        await supabase.storage
+          .from(
+            'voice-messages'
+          )
+          .upload(
+            filePath,
+            audioBlob,
+            {
+              contentType:
+                audioBlob.type ||
+                'audio/webm',
+              upsert: false,
+            }
+          )
+
+      if (uploadError) {
+        console.log(
+          'VOICE UPLOAD ERROR:',
+          uploadError
+        )
+        return
+      }
+
+      const {
+        error: messageError,
+      } =
+        await supabase
+          .from('messages')
+          .insert({
+            user_id:
+              user.id,
+            planet_id:
+              planet.id,
+            channel:
+              activeChannel,
+            content: '',
+            message_type:
+              'voice',
+            audio_path:
+              filePath,
+            audio_duration:
+              Math.round(
+                duration
+              ),
+          })
+
+      if (messageError) {
+        console.log(
+          'VOICE MESSAGE ERROR:',
+          messageError
         )
 
-    if (uploadError) {
+        await supabase.storage
+          .from(
+            'voice-messages'
+          )
+          .remove([
+            filePath,
+          ])
+
+        return
+      }
+
       console.log(
-        'VOICE UPLOAD ERROR:',
-        uploadError,
+        'VOICE SENT SUCCESSFULLY'
       )
-      return
-    }
-
-    const { error: messageError } =
-      await supabase
-        .from('messages')
-        .insert({
-          user_id: user.id,
-          planet_id: planet.id,
-          channel: activeChannel,
-          content: '',
-          message_type: 'voice',
-          audio_path: filePath,
-          audio_duration: Math.round(duration),
-        })
-
-    if (messageError) {
+    } catch (error) {
       console.log(
-        'VOICE MESSAGE ERROR:',
-        messageError,
+        'VOICE SEND ERROR:',
+        error
       )
-
-      await supabase.storage
-        .from('voice-messages')
-        .remove([filePath])
-
-      return
     }
-
-    console.log(
-      'VOICE SENT SUCCESSFULLY',
-    )
-  } catch (error) {
-    console.log(
-      'VOICE SEND ERROR:',
-      error,
-    )
   }
-}
 
+  // =====================================================
+  // SEND IMAGE
+  // =====================================================
 
-async function handleSendImage(file: File) {
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+  async function handleSendImage(
+    file: File
+  ) {
+    try {
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser()
 
-    if (!user) return
+      if (!user) return
 
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image.')
-      return
-    }
+      if (
+        !file.type.startsWith(
+          'image/'
+        )
+      ) {
+        alert(
+          'Please select an image.'
+        )
+        return
+      }
 
-    const extension =
-      file.name.split('.').pop()?.toLowerCase() || 'jpg'
+      const extension =
+        file.name
+          .split('.')
+          .pop()
+          ?.toLowerCase() ||
+        'jpg'
 
-    const filePath =
-      `${planet.id}/${user.id}/${crypto.randomUUID()}.${extension}`
+      const filePath =
+        `${planet.id}/${user.id}/${crypto.randomUUID()}.${extension}`
 
-    const { error: uploadError } =
-      await supabase.storage
-        .from('chat-images')
-        .upload(filePath, file, {
-          contentType: file.type,
-          upsert: false,
-        })
+      const {
+        error: uploadError,
+      } =
+        await supabase.storage
+          .from(
+            'chat-images'
+          )
+          .upload(
+            filePath,
+            file,
+            {
+              contentType:
+                file.type,
+              upsert: false,
+            }
+          )
 
-    if (uploadError) {
+      if (uploadError) {
+        console.log(
+          'IMAGE UPLOAD ERROR:',
+          uploadError
+        )
+        return
+      }
+
+      const { data } =
+        supabase.storage
+          .from(
+            'chat-images'
+          )
+          .getPublicUrl(
+            filePath
+          )
+
+      const publicUrl =
+        data.publicUrl
+
+      const {
+        error: messageError,
+      } =
+        await supabase
+          .from('messages')
+          .insert({
+            user_id:
+              user.id,
+            planet_id:
+              planet.id,
+            channel:
+              activeChannel,
+            content:
+              publicUrl,
+            message_type:
+              'image',
+          })
+
+      if (messageError) {
+        console.log(
+          'IMAGE MESSAGE ERROR:',
+          messageError
+        )
+
+        await supabase.storage
+          .from(
+            'chat-images'
+          )
+          .remove([
+            filePath,
+          ])
+
+        return
+      }
+
       console.log(
-        'IMAGE UPLOAD ERROR:',
-        uploadError
+        'IMAGE SENT SUCCESSFULLY'
       )
-      return
+    } catch (error) {
+      console.log(
+        'IMAGE SEND ERROR:',
+        error
+      )
     }
-
-    const { data } =
-      supabase.storage
-        .from('chat-images')
-        .getPublicUrl(filePath)
-
-    const publicUrl = data.publicUrl
-
-    const { error: messageError } =
-      await supabase
-        .from('messages')
-        .insert({
-          user_id: user.id,
-          planet_id: planet.id,
-          channel: activeChannel,
-          content: publicUrl,
-          message_type: 'image',
-        })
-
-    if (messageError) {
-console.log(
-  'IMAGE MESSAGE ERROR:',
-  messageError
-)
-
-console.log(
-  'IMAGE MESSAGE ERROR DETAILS:',
-  JSON.stringify(
-    messageError,
-    null,
-    2
-  )
-)
-
-      await supabase.storage
-        .from('chat-images')
-        .remove([filePath])
-
-      return
-    }
-
-    console.log(
-      'IMAGE SENT SUCCESSFULLY'
-    )
-  } catch (error) {
-    console.log(
-      'IMAGE SEND ERROR:',
-      error
-    )
   }
-}
+
   // =====================================================
   // DELETE MESSAGE
   // =====================================================
-async function handleDeleteMessage(
-  id: string
-) {
-  console.log(
-    'DELETE CLICKED:',
-    id
-  )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  console.log(
-    'CURRENT USER:',
-    user?.id
-  )
-
-  if (!user) return
-
-  let query = supabase
-    .from('messages')
-    .delete()
-    .eq('id', id)
-
-  // Member عادي:
-  // يقدر يحذف رسالته هو فقط
-  //
-  // Founder:
-  // يقدر يحذف أي رسالة في الـPlanet
-  if (!isFounder) {
-    query = query.eq(
-      'user_id',
-      user.id
-    )
-  }
-
-  const {
-    data,
-    error,
-  } = await query.select()
-
-  console.log(
-    'DELETE DATA:',
-    data
-  )
-
-  console.log(
-    'DELETE ERROR:',
-    error
-  )
-
-  if (error) {
-    alert(
-      "You can't delete this message"
-    )
-
-    return
-  }
-
-  if (
-    !data ||
-    data.length === 0
+  async function handleDeleteMessage(
+    id: string
   ) {
-    alert(
-      'Delete blocked by permission'
+    console.log(
+      'DELETE CLICKED:',
+      id
     )
 
-    return
+    const {
+      data: { user },
+    } =
+      await supabase.auth.getUser()
+
+    console.log(
+      'CURRENT USER:',
+      user?.id
+    )
+
+    if (!user) return
+
+    let query = supabase
+      .from('messages')
+      .delete()
+      .eq('id', id)
+
+    if (!isFounder) {
+      query = query.eq(
+        'user_id',
+        user.id
+      )
+    }
+
+    const {
+      data,
+      error,
+    } = await query.select()
+
+    console.log(
+      'DELETE DATA:',
+      data
+    )
+
+    console.log(
+      'DELETE ERROR:',
+      error
+    )
+
+    if (error) {
+      alert(
+        "You can't delete this message"
+      )
+
+      return
+    }
+
+    if (
+      !data ||
+      data.length === 0
+    ) {
+      alert(
+        'Delete blocked by permission'
+      )
+
+      return
+    }
+
+    setThreads(
+      prev => ({
+        ...prev,
+
+        [activeChannel]:
+          (
+            prev[
+              activeChannel
+            ] ?? []
+          ).filter(
+            m =>
+              m.id !== id
+          ),
+      })
+    )
   }
 
-  setThreads(
-    prev => ({
-      ...prev,
+  // =====================================================
+  // FOUNDER
+  // =====================================================
 
-      [activeChannel]:
-        (
-          prev[
-            activeChannel
-          ] ?? []
-        ).filter(
-          m =>
-            m.id !== id
-        ),
-    })
-  )
-}
-  // =====================================================
-  // SHARED SIDEBAR PROPS
-  // =====================================================
   const isFounder =
     planetMembers.some(
       member =>
-        member.user_id === profile?.id &&
-        member.role?.toLowerCase() === 'founder'
+        member.user_id ===
+          profile?.id &&
+        member.role
+          ?.toLowerCase() ===
+          'founder'
     )
+
+  const isMember =
+    planetMembers.some(
+      member =>
+        member.user_id ===
+        profile?.id
+    )
+
+  // =====================================================
+  // SHARED SIDEBAR PROPS
+  // =====================================================
 
   const sidebarProps = {
     planet: {
@@ -1028,9 +1199,11 @@ async function handleDeleteMessage(
     activeChannel,
 
     onSelectChannel:
-      (channel: string) => {
+      (
+        selectedChannel: string
+      ) => {
         setActiveChannel(
-          channel
+          selectedChannel
         )
 
         setMobileView(
@@ -1038,110 +1211,379 @@ async function handleDeleteMessage(
         )
       },
 
-    isMember:
-      planetMembers.some(
-        m =>
-          m.user_id ===
-          profile?.id
-      ),
-
-    onJoin:
-      joinPlanet,
+    isMember,
+    onJoin: joinPlanet,
   }
+
+  // =====================================================
+  // MOBILE NAV ITEM
+  // =====================================================
+
+  function mobileNavButtonClass(
+    active: boolean
+  ) {
+    return `
+      group relative flex size-11 items-center
+      justify-center rounded-xl
+      transition-all duration-200
+      active:scale-95
+      ${
+        active
+          ? 'bg-primary/12 text-primary'
+          : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
+      }
+    `
+  }
+
+  function ActiveIndicator({
+    active,
+  }: {
+    active: boolean
+  }) {
+    if (!active) return null
+
+    return (
+      <span
+        className="
+          absolute inset-x-3 bottom-1 h-0.5
+          rounded-full bg-primary
+          shadow-[0_0_10px_oklch(0.72_0.18_278_/_0.6)]
+        "
+      />
+    )
+  }
+
+  // =====================================================
+  // INTERACTIVE TRANSFORMS
+  // =====================================================
+
+  const atmosphereTransform = `
+    translate3d(
+      ${mousePosition.x * 10}px,
+      ${mousePosition.y * 10}px,
+      0
+    )
+  `
+
+  const contentTransform = `
+    perspective(1200px)
+    rotateX(${mousePosition.y * -0.8}deg)
+    rotateY(${mousePosition.x * 0.8}deg)
+  `
 
   // =====================================================
   // RENDER
   // =====================================================
 
   return (
-    <main className="flex h-dvh overflow-hidden">
+    <main
+      className={`
+        relative flex h-dvh overflow-hidden bg-background
+        transition-opacity duration-700
+        ${
+          planetReady
+            ? 'opacity-100'
+            : 'opacity-0'
+        }
+      `}
+      style={{
+        transform:
+          isPointerInside
+            ? contentTransform
+            : 'none',
+        transition:
+          'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+    >
+      {/* =================================================
+          INTERACTIVE CURSOR GLOW
+          ================================================= */}
 
-      {/* ================================================= */}
-      {/* DESKTOP — ORIGINAL LAYOUT, UNTOUCHED */}
-      {/* ================================================= */}
+      <div
+        className="
+          pointer-events-none fixed inset-0 z-[5]
+          transition-opacity duration-500
+        "
+        aria-hidden
+        style={{
+          opacity:
+            isPointerInside
+              ? 1
+              : 0,
 
-      <div className="hidden md:flex md:flex-1 md:min-w-0">
+          background:
+            `radial-gradient(
+              520px circle at
+              ${50 + mousePosition.x * 18}%
+              ${50 + mousePosition.y * 18}%,
+              ${planet.accent}16,
+              transparent 68%
+            )`,
+        }}
+      />
 
-        <AppNav />
+      {/* ATMOSPHERIC PLANET BACKDROP */}
 
-        <PlanetSidebar
-          planet={{
-            ...planet,
-            members:
-              memberCount,
+      <div
+        className="
+          pointer-events-none absolute inset-0
+          z-0 overflow-hidden
+        "
+        aria-hidden
+        style={{
+          transform:
+            atmosphereTransform,
+
+          transition:
+            'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
+      >
+        {/* Main planet atmosphere */}
+
+        <div
+          className="
+            absolute -left-[12%] -top-[20%]
+            h-[55%] w-[55%] rounded-full
+            blur-3xl opacity-20
+            animate-float-gentle
+          "
+          style={{
+            background:
+              `radial-gradient(
+                circle,
+                ${planet.accent},
+                transparent 68%
+              )`,
           }}
-          activeChannel={
-            activeChannel
-          }
-          onSelectChannel={
-            setActiveChannel
-          }
-          isMember={
-            planetMembers.some(
-              m =>
-                m.user_id ===
-                profile?.id
-            )
-          }
-          onJoin={
-            joinPlanet
-          }
         />
 
-<ChatView
-  channel={activeChannel}
-  planetName={planet.name}
-  messages={threads[activeChannel] ?? []}
-  typingUsers={typingUsers}
-  onSend={handleSend}
-  onSendVoice={handleSendVoice}
-  onSendImage={handleSendImage}
-  onTyping={handleTyping}
-  onDeleteMessage={handleDeleteMessage}
-  currentUserId={profile?.id}
-  isFounder={isFounder}
-  onToggleSidebar={() => {}}
-/>
-        <MembersPanel
-          members={
-            planetMembers
-          }
-          typingUsers={
-            typingUsers
-          }
+        {/* Secondary atmosphere */}
+
+        <div
+          className="
+            absolute -right-[15%] top-[8%]
+            h-[48%] w-[48%] rounded-full
+            blur-3xl opacity-12
+            animate-float-medium
+          "
+          style={{
+            background:
+              `radial-gradient(
+                circle,
+                ${planet.accent2},
+                transparent 68%
+              )`,
+          }}
         />
 
+        {/* Extra ambient glow */}
+
+        <div
+          className="
+            absolute left-1/2 top-1/2
+            h-[35vw] w-[35vw]
+            -translate-x-1/2
+            -translate-y-1/2
+            rounded-full
+            blur-[140px]
+            opacity-[0.035]
+            animate-pulse
+          "
+          style={{
+            background:
+              planet.accent,
+          }}
+        />
+
+        {/* Vignette */}
+
+        <div
+          className="
+            absolute inset-0
+            bg-[radial-gradient(
+              ellipse_at_center,
+              transparent_35%,
+              oklch(0.05_0.02_265_/_0.18)_100%
+            )]
+          "
+        />
+
+        {/* Moving light streak */}
+
+        <div
+          className="
+            absolute -left-[20%]
+            top-[35%]
+            h-px w-[70%]
+            rotate-[-18deg]
+            opacity-[0.035]
+            blur-[1px]
+          "
+          style={{
+            background:
+              `linear-gradient(
+                90deg,
+                transparent,
+                ${planet.accent},
+                transparent
+              )`,
+            transform:
+              `translateX(${mousePosition.x * 30}px)`,
+            transition:
+              'transform 0.6s ease-out',
+          }}
+        />
       </div>
 
-      {/* ================================================= */}
-      {/* MOBILE — ONLY MOBILE */}
-      {/* ================================================= */}
+      {/* DESKTOP */}
 
-      <div className="flex min-w-0 flex-1 flex-col md:hidden">
+      <div className="relative z-10 hidden min-h-0 flex-1 md:flex">
+        <div className="animate-fade-up-soft">
+          <AppNav />
+        </div>
 
-        <div className="min-h-0 flex-1">
+        <div className="relative z-10 flex min-h-0 shrink-0">
+          <div className="animate-fade-up-soft [animation-delay:70ms]">
+            <PlanetSidebar
+              {...sidebarProps}
+            />
+          </div>
+        </div>
+
+        <div className="relative z-10 flex min-w-0 flex-1 animate-scale-in-soft [animation-delay:110ms]">
+          <div className="relative flex min-w-0 flex-1 overflow-hidden">
+            <div
+              className="
+                pointer-events-none absolute
+                inset-x-0 top-0 z-20 h-20
+              "
+              aria-hidden
+            >
+              <div
+                className="h-full w-full opacity-70"
+                style={{
+                  background:
+                    `linear-gradient(
+                      180deg,
+                      color-mix(
+                        in oklab,
+                        ${planet.accent} 7%,
+                        transparent
+                      ),
+                      transparent
+                    )`,
+                }}
+              />
+            </div>
+
+            <ChatView
+              channel={
+                activeChannel
+              }
+              planetName={
+                planet.name
+              }
+              messages={
+                threads[
+                  activeChannel
+                ] ?? []
+              }
+              typingUsers={
+                typingUsers
+              }
+              onSend={
+                handleSend
+              }
+              onSendVoice={
+                handleSendVoice
+              }
+              onSendImage={
+                handleSendImage
+              }
+              onTyping={
+                handleTyping
+              }
+              onDeleteMessage={
+                handleDeleteMessage
+              }
+              currentUserId={
+                profile?.id
+              }
+              isFounder={
+                isFounder
+              }
+              onToggleSidebar={
+                () => {}
+              }
+            />
+          </div>
+        </div>
+
+        <div className="relative z-10 flex min-h-0 shrink-0 animate-fade-up-soft [animation-delay:150ms]">
+          <MembersPanel
+            members={
+              planetMembers
+            }
+            typingUsers={
+              typingUsers
+            }
+          />
+        </div>
+      </div>
+
+      {/* MOBILE */}
+
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col md:hidden">
+        <div className="relative min-h-0 flex-1">
 
           {/* CHAT */}
 
           {mobileView ===
             'chat' && (
-            <div className="flex h-full min-h-0 flex-col">
-
-    <ChatView
-  channel={activeChannel}
-  planetName={planet.name}
-  messages={threads[activeChannel] ?? []}
-  typingUsers={typingUsers}
-  onSend={handleSend}
-  onSendVoice={handleSendVoice}
-  onSendImage={handleSendImage}
-  onTyping={handleTyping}
-  onDeleteMessage={handleDeleteMessage}
-  currentUserId={profile?.id}
-  isFounder={isFounder}
-  onToggleSidebar={() => setMobileView('channels')}
-/>
-
+            <div className="animate-scale-in-soft flex h-full min-h-0 flex-col">
+              <ChatView
+                channel={
+                  activeChannel
+                }
+                planetName={
+                  planet.name
+                }
+                messages={
+                  threads[
+                    activeChannel
+                  ] ?? []
+                }
+                typingUsers={
+                  typingUsers
+                }
+                onSend={
+                  handleSend
+                }
+                onSendVoice={
+                  handleSendVoice
+                }
+                onSendImage={
+                  handleSendImage
+                }
+                onTyping={
+                  handleTyping
+                }
+                onDeleteMessage={
+                  handleDeleteMessage
+                }
+                currentUserId={
+                  profile?.id
+                }
+                isFounder={
+                  isFounder
+                }
+                onToggleSidebar={
+                  () =>
+                    setMobileView(
+                      'channels'
+                    )
+                }
+              />
             </div>
           )}
 
@@ -1149,12 +1591,12 @@ async function handleDeleteMessage(
 
           {mobileView ===
             'channels' && (
-            <div className="flex h-full min-h-0 flex-col">
+            <div className="animate-fade-up-soft flex h-full min-h-0 flex-col">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28 bg-[linear-gradient(180deg,oklch(0.72_0.18_278_/_0.055),transparent)]" />
 
               <PlanetSidebar
                 {...sidebarProps}
               />
-
             </div>
           )}
 
@@ -1162,8 +1604,7 @@ async function handleDeleteMessage(
 
           {mobileView ===
             'members' && (
-            <div className="flex h-full min-h-0 flex-col">
-
+            <div className="animate-fade-up-soft flex h-full min-h-0 flex-col">
               <MembersPanel
                 members={
                   planetMembers
@@ -1172,48 +1613,56 @@ async function handleDeleteMessage(
                   typingUsers
                 }
               />
-
             </div>
           )}
-
         </div>
+
+        {/* MOBILE NAVIGATION */}
 
         <nav
           className="
-            flex
-            h-16
-            shrink-0
-            items-center
-            justify-around
-            border-t
-            border-border
-            bg-background/95
-            px-1
-            backdrop-blur-xl
+            relative z-30 flex h-16 shrink-0
+            items-center justify-around
+            border-t border-border/70
+            bg-background/85 px-1
+            backdrop-blur-2xl
+            shadow-[0_-12px_36px_oklch(0.02_0.015_265_/_0.25)]
           "
           aria-label="Mobile navigation"
         >
+          {/* top glow */}
+
+          <div
+            className="
+              pointer-events-none absolute
+              inset-x-0 -top-px h-px opacity-70
+            "
+            style={{
+              background:
+                `linear-gradient(
+                  90deg,
+                  transparent,
+                  color-mix(
+                    in oklab,
+                    ${planet.accent} 35%,
+                    transparent
+                  ),
+                  transparent
+                )`,
+            }}
+          />
 
           {/* HOME */}
 
           <Link
             href="/planets"
             aria-label="Home"
-            className="
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              text-muted-foreground
-              transition-colors
-              hover:bg-secondary
-              hover:text-foreground
-            "
+            className={mobileNavButtonClass(
+              false
+            )}
           >
-            <Home className="size-5" />
+            <Home className="size-5 transition-transform duration-200 group-hover:scale-110" />
           </Link>
-
 
           {/* CHANNELS */}
 
@@ -1225,26 +1674,20 @@ async function handleDeleteMessage(
               )
             }
             aria-label="Channels"
-            className={`
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              transition-colors
-              ${
+            className={mobileNavButtonClass(
+              mobileView ===
+                'channels'
+            )}
+          >
+            <ActiveIndicator
+              active={
                 mobileView ===
                 'channels'
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
-            `}
-          >
-            <span className="text-xl leading-none">
-              #
-            </span>
-          </button>
+            />
 
+            <Hash className="size-5 transition-transform duration-200 group-hover:scale-110" />
+          </button>
 
           {/* CHAT */}
 
@@ -1256,26 +1699,20 @@ async function handleDeleteMessage(
               )
             }
             aria-label="Chat"
-            className={`
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              transition-colors
-              ${
+            className={mobileNavButtonClass(
+              mobileView ===
+                'chat'
+            )}
+          >
+            <ActiveIndicator
+              active={
                 mobileView ===
                 'chat'
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
-            `}
-          >
-            <span className="text-lg">
-              💬
-            </span>
-          </button>
+            />
 
+            <Sparkles className="size-5 transition-transform duration-200 group-hover:scale-110" />
+          </button>
 
           {/* MEMBERS */}
 
@@ -1287,74 +1724,47 @@ async function handleDeleteMessage(
               )
             }
             aria-label="Members"
-            className={`
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              transition-colors
-              ${
+            className={mobileNavButtonClass(
+              mobileView ===
+                'members'
+            )}
+          >
+            <ActiveIndicator
+              active={
                 mobileView ===
                 'members'
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }
-            `}
-          >
-            <span className="text-lg">
-              👥
-            </span>
-          </button>
+            />
 
+            <Users className="size-5 transition-transform duration-200 group-hover:scale-110" />
+          </button>
 
           {/* NOTIFICATIONS */}
 
           <Link
             href="/notifications"
             aria-label="Notifications"
-            className="
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              text-muted-foreground
-              transition-colors
-              hover:bg-secondary
-              hover:text-foreground
-            "
+            className={mobileNavButtonClass(
+              false
+            )}
           >
-            <Bell className="size-5" />
+            <Bell className="size-5 transition-transform duration-200 group-hover:scale-110" />
           </Link>
-
 
           {/* SETTINGS */}
 
           <Link
             href="/settings"
             aria-label="Settings"
-            className="
-              flex
-              size-11
-              items-center
-              justify-center
-              rounded-xl
-              text-muted-foreground
-              transition-colors
-              hover:bg-secondary
-              hover:text-foreground
-            "
+            className={mobileNavButtonClass(
+              false
+            )}
           >
-            <Settings className="size-5" />
+            <Settings className="size-5 transition-transform duration-200 group-hover:scale-110" />
           </Link>
-
         </nav>
-
-     
-
       </div>
-
     </main>
   )
 }
+
