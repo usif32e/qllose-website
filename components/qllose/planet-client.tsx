@@ -1,6 +1,7 @@
 
 'use client'
 
+
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { Planet, Message, Member } from '@/lib/qllose-data'
@@ -1321,6 +1322,13 @@ export function PlanetClient({
             )`,
         }}
       />
+
+
+
+
+
+
+
 
       {/* ATMOSPHERIC PLANET BACKDROP */}
 

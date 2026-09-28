@@ -1,12 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
 import {
+ArrowLeft,
 ArrowRight,
 LockKeyhole,
-Mail,
 Sparkles,
 } from 'lucide-react'
 
@@ -15,12 +14,11 @@ import { Field } from '@/components/qllose/field'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
-export default function LoginPage() {
-const router = useRouter()
-
+export default function ResetPasswordPage() {
 const [loading, setLoading] = useState(false)
-const [checkingSession, setCheckingSession] = useState(true)
+const [checking, setChecking] = useState(true)
 const [error, setError] = useState<string | null>(null)
+const [success, setSuccess] = useState(false)
 
 useEffect(() => {
 let mounted = true
@@ -33,12 +31,13 @@ async function checkSession() {
 
   if (!mounted) return
 
-  if (session?.user) {
-    router.replace('/planets')
-    return
+  if (!session) {
+    setError(
+      'This password reset link is invalid or has expired.',
+    )
   }
 
-  setCheckingSession(false)
+  setChecking(false)
 }
 
 checkSession()
@@ -48,73 +47,116 @@ return () => {
 }
 
 
-}, [router])
+}, [])
 
 async function handleSubmit(
 e: FormEvent<HTMLFormElement>,
 ) {
 e.preventDefault()
-setError(null)
 
+setError(null)
 
 const form = new FormData(e.currentTarget)
 
-const email = form.get('email') as string
 const password = form.get('password') as string
+const confirm = form.get('confirm') as string
+
+if (password !== confirm) {
+  setError('Passwords do not match.')
+  return
+}
+
+if (password.length < 6) {
+  setError(
+    'Password must be at least 6 characters.',
+  )
+  return
+}
 
 setLoading(true)
 
-const {
-  data,
-  error: signInError,
-} = await supabase.auth.signInWithPassword({
-  email,
-  password,
-})
+const { error: updateError } =
+  await supabase.auth.updateUser({
+    password,
+  })
 
-if (signInError) {
-  setError(signInError.message)
+if (updateError) {
+  setError(updateError.message)
   setLoading(false)
   return
 }
 
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('id')
-  .eq('id', data.user.id)
-  .maybeSingle()
+setSuccess(true)
+setLoading(false)
 
-router.replace(
-  profile
-    ? '/planets'
-    : '/welcome',
-)
+await supabase.auth.signOut()
 
 
 }
 
-if (checkingSession) {
+if (checking) {
 return ( <AuthShell
-     title="Welcome back"
-     subtitle="Checking your session..."
+     title="Reset your password"
+     subtitle="Checking your reset link..."
    > <div className="flex items-center justify-center py-10"> <span className="size-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary" /> </div> </AuthShell>
 )
 }
 
+if (success) {
 return ( <AuthShell
-   title="Welcome back"
-   subtitle="Log in to return to your universe."
+     title="Password updated"
+     subtitle="Your Qllose password has been changed successfully."
+   > <div className="animate-fade-up-soft"> <div className="rounded-2xl border border-primary/10 bg-primary/[0.045] p-5"> <div className="mb-3 flex size-10 items-center justify-center rounded-xl border border-primary/10 bg-primary/[0.08]"> <LockKeyhole className="size-5 text-primary" /> </div>
+
+
+        <h3 className="text-sm font-medium text-foreground">
+          You're all set
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-muted-foreground/75">
+          Your password has been changed. You can now
+          log in to Qllose using your new password.
+        </p>
+      </div>
+
+      <Link
+        href="/login"
+        className="
+          mt-6
+          flex
+          items-center
+          justify-center
+          gap-2
+          text-sm
+          text-primary/90
+          transition-colors
+          hover:text-primary
+        "
+      >
+        Go to Login
+        <ArrowRight className="size-4" />
+      </Link>
+    </div>
+  </AuthShell>
+)
+
+
+}
+
+return ( <AuthShell
+   title="Choose a new password"
+   subtitle="Create a new password for your Qllose account."
  > <div className="animate-fade-up-soft mb-6"> <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/[0.045] px-3 py-1.5 text-[10px] text-muted-foreground backdrop-blur-xl"> <Sparkles className="size-3.5 text-primary" />
 
 
       <span>
-        Return to Qllose
+        Secure account recovery
       </span>
     </div>
 
     <p className="max-w-sm text-sm leading-6 text-muted-foreground/75">
-      Your planets, conversations, and communities
-      are waiting for you.
+      Choose a new password to secure your Qllose
+      account.
     </p>
   </div>
 
@@ -124,48 +166,32 @@ return ( <AuthShell
   >
     <div className="animate-fade-up-soft">
       <Field
-        id="email"
-        name="email"
-        label="Email"
-        type="email"
-        placeholder="you@qllose.space"
+        id="password"
+        name="password"
+        label="New Password"
+        type="password"
+        placeholder="••••••••"
         required
-        autoComplete="email"
+        autoComplete="new-password"
         icon={
-          <Mail className="size-4" />
+          <LockKeyhole className="size-4" />
         }
       />
     </div>
 
     <div className="animate-fade-up-soft [animation-delay:60ms]">
       <Field
-        id="password"
-        name="password"
-        label="Password"
+        id="confirm"
+        name="confirm"
+        label="Confirm New Password"
         type="password"
         placeholder="••••••••"
         required
-        autoComplete="current-password"
+        autoComplete="new-password"
         icon={
           <LockKeyhole className="size-4" />
         }
       />
-
-      <Link
-        href="/forgot-password"
-        className="
-          mt-2
-          block
-          w-fit
-          ml-auto
-          text-xs
-          text-primary/75
-          transition-colors
-          hover:text-primary
-        "
-      >
-        Forgot password?
-      </Link>
     </div>
 
     {error && (
@@ -227,12 +253,11 @@ return ( <AuthShell
       {loading ? (
         <span className="relative flex items-center justify-center gap-2">
           <span className="size-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
-          Logging in…
+          Updating password…
         </span>
       ) : (
         <span className="relative flex items-center justify-center gap-2">
-          Login
-
+          Update Password
           <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
         </span>
       )}
@@ -240,20 +265,22 @@ return ( <AuthShell
   </form>
 
   <div className="animate-fade-up-soft mt-7 border-t border-white/[0.055] pt-5">
-    <p className="text-center text-sm text-muted-foreground">
-      Don't have an account?{' '}
-      <Link
-        href="/register"
-        className="
-          font-medium
-          text-primary/90
-          transition-colors
-          hover:text-primary
-        "
-      >
-        Create Account
-      </Link>
-    </p>
+    <Link
+      href="/login"
+      className="
+        flex
+        items-center
+        justify-center
+        gap-2
+        text-sm
+        text-muted-foreground
+        transition-colors
+        hover:text-primary
+      "
+    >
+      <ArrowLeft className="size-4" />
+      Back to Login
+    </Link>
   </div>
 </AuthShell>
 
