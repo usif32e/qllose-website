@@ -1,8 +1,6 @@
-
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import {
   ArrowRight,
@@ -18,49 +16,33 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 
 export default function RegisterPage() {
-  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  const [loading, setLoading] =
-    useState(false)
-
-  const [error, setError] =
-    useState<string | null>(null)
-
-  async function handleSubmit(
-    e: FormEvent<HTMLFormElement>,
-  ) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+
     setError(null)
+    setSuccess(false)
 
-    const form =
-      new FormData(
-        e.currentTarget,
-      )
+    const form = new FormData(e.currentTarget)
 
-    const email =
-      form.get('email') as string
-
-    const password =
-      form.get('password') as string
-
-    const confirm =
-      form.get('confirm') as string
-
-    const username =
-      form.get('username') as string
+    const email = (form.get('email') as string).trim()
+    const password = form.get('password') as string
+    const confirm = form.get('confirm') as string
+    const username = (form.get('username') as string).trim()
 
     if (password !== confirm) {
-      setError(
-        'Passwords do not match.',
-      )
+      setError('Passwords do not match.')
       return
     }
 
     setLoading(true)
 
-    const {
-      error: signUpError,
-    } =
+    const redirectUrl = `${window.location.origin}/auth/callback`
+
+    const { error: signUpError } =
       await supabase.auth.signUp({
         email,
         password,
@@ -68,20 +50,18 @@ export default function RegisterPage() {
           data: {
             username,
           },
+          emailRedirectTo: redirectUrl,
         },
       })
 
     if (signUpError) {
-      setError(
-        signUpError.message,
-      )
-
+      setError(signUpError.message)
       setLoading(false)
-
       return
     }
 
-    router.push('/welcome')
+    setLoading(false)
+    setSuccess(true)
   }
 
   return (
@@ -89,10 +69,6 @@ export default function RegisterPage() {
       title="Create your account"
       subtitle="Join Qllose and find your universe."
     >
-      {/* =====================================================
-          INTRO
-      ===================================================== */}
-
       <div className="animate-fade-up-soft mb-6">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/[0.045] px-3 py-1.5 text-[10px] text-muted-foreground backdrop-blur-xl">
           <Sparkles className="size-3.5 text-primary" />
@@ -108,16 +84,10 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* =====================================================
-          FORM
-      ===================================================== */}
-
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-4"
       >
-        {/* USERNAME */}
-
         <div className="animate-fade-up-soft">
           <Field
             id="username"
@@ -126,13 +96,9 @@ export default function RegisterPage() {
             placeholder="nova"
             required
             autoComplete="username"
-            icon={
-              <AtSign className="size-4" />
-            }
+            icon={<AtSign className="size-4" />}
           />
         </div>
-
-        {/* EMAIL */}
 
         <div className="animate-fade-up-soft [animation-delay:50ms]">
           <Field
@@ -143,13 +109,9 @@ export default function RegisterPage() {
             placeholder="you@qllose.space"
             required
             autoComplete="email"
-            icon={
-              <Mail className="size-4" />
-            }
+            icon={<Mail className="size-4" />}
           />
         </div>
-
-        {/* PASSWORD */}
 
         <div className="animate-fade-up-soft [animation-delay:100ms]">
           <Field
@@ -160,13 +122,9 @@ export default function RegisterPage() {
             placeholder="••••••••"
             required
             autoComplete="new-password"
-            icon={
-              <LockKeyhole className="size-4" />
-            }
+            icon={<LockKeyhole className="size-4" />}
           />
         </div>
-
-        {/* CONFIRM PASSWORD */}
 
         <div className="animate-fade-up-soft [animation-delay:150ms]">
           <Field
@@ -177,13 +135,9 @@ export default function RegisterPage() {
             placeholder="••••••••"
             required
             autoComplete="new-password"
-            icon={
-              <LockKeyhole className="size-4" />
-            }
+            icon={<LockKeyhole className="size-4" />}
           />
         </div>
-
-        {/* ERROR */}
 
         {error && (
           <div
@@ -204,7 +158,21 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* SUBMIT */}
+        {success && (
+          <div
+            className="
+              animate-fade-up-soft
+              rounded-xl
+              border border-primary/15
+              bg-primary/[0.06]
+              px-3.5 py-3
+            "
+          >
+            <p className="text-sm leading-5 text-primary">
+              Account created! Check your email and click the confirmation link to continue.
+            </p>
+          </div>
+        )}
 
         <Button
           type="submit"
@@ -251,16 +219,11 @@ export default function RegisterPage() {
           ) : (
             <span className="relative flex items-center justify-center gap-2">
               Create Account
-
               <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
             </span>
           )}
         </Button>
       </form>
-
-      {/* =====================================================
-          LOGIN
-      ===================================================== */}
 
       <div className="animate-fade-up-soft mt-7 border-t border-white/[0.055] pt-5">
         <p className="text-center text-sm text-muted-foreground">
@@ -281,4 +244,3 @@ export default function RegisterPage() {
     </AuthShell>
   )
 }
-

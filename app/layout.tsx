@@ -1,12 +1,15 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+
 import './globals.css'
+import { PushNotificationSetup } from '@/components/qllose/push-notifications'
 
 const geistSans = Geist({
   subsets: ['latin'],
   variable: '--font-geist-sans',
 })
+
 const geistMono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-geist-mono',
@@ -30,10 +33,18 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`dark ${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`dark ${geistSans.variable} ${geistMono.variable}`}
+    >
       <body className="font-sans antialiased">
+        <PushNotificationSetup />
+
         {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+
+        {process.env.NODE_ENV === 'production' && (
+          <Analytics />
+        )}
       </body>
     </html>
   )
