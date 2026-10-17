@@ -10,7 +10,6 @@ import {
   MessagesSquare,
   ShieldCheck,
   ArrowRight,
-  Orbit,
   Zap,
 } from 'lucide-react'
 
@@ -19,7 +18,6 @@ import { Logo } from '@/components/qllose/logo'
 import { PlanetOrb } from '@/components/qllose/planet-orb'
 import { buttonVariants } from '@/components/ui/button'
 
-import { planets } from '@/lib/qllose-data'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -282,80 +280,6 @@ export default function LandingPage() {
               Qllose Universe
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* PLANETS */}
-      <section className="relative z-10 mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">
-        <div className="mx-auto max-w-3xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/35 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur-xl">
-            <Orbit className="size-3.5 text-primary" />
-            Worlds built around interests
-          </div>
-
-          <h2 className="text-balance text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-            Three universes.
-            <span className="text-gradient"> Endless conversations.</span>
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-muted-foreground sm:text-base">
-            Different interests. Different people. One place to find the
-            conversation that feels right.
-          </p>
-        </div>
-
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {planets.map((planet, index) => (
-            <article
-              key={planet.id}
-              className="group relative animate-fade-up-soft"
-              style={{ animationDelay: `${index * 90}ms` }}
-            >
-              <div
-                className="pointer-events-none absolute -inset-5 rounded-[2.5rem] opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-25"
-                style={{ background: planet.accent }}
-              />
-
-              <div className="relative min-h-[285px] overflow-hidden rounded-[1.75rem] border border-border/60 bg-background/45 p-6 shadow-[0_16px_55px_-30px_rgba(0,0,0,0.9)] backdrop-blur-2xl transition-all duration-500 group-hover:-translate-y-1 group-hover:border-white/10">
-                <div
-                  className="pointer-events-none absolute inset-0 opacity-[0.045] transition-opacity duration-500 group-hover:opacity-[0.085]"
-                  style={{ background: `radial-gradient(circle at 50% 8%, ${planet.accent}, transparent 58%)` }}
-                />
-
-                <div className="relative z-10 flex items-start justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">Planet</span>
-                    <h3 className="mt-1 text-lg font-semibold tracking-tight">{planet.name}</h3>
-                  </div>
-                  <div className="flex size-9 items-center justify-center rounded-xl border border-border/60 bg-background/30" style={{ color: planet.accent }}>
-                    <Orbit className="size-4 transition-transform duration-500 group-hover:rotate-45" />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center gap-5">
-                  <div className="relative shrink-0 transition-transform duration-500 group-hover:scale-105">
-                    <PlanetOrb accent={planet.accent} accent2={planet.accent2} size={82} float={false} ring={false} />
-                  </div>
-                  <p className="text-sm leading-6 text-muted-foreground">{planet.description}</p>
-                </div>
-
-                <div className="mt-6 flex flex-wrap gap-1.5">
-                  {planet.audience.slice(0, 4).map((tag) => (
-                    <span key={tag} className="rounded-full border border-border/60 bg-background/30 px-2.5 py-1 text-[10px] text-muted-foreground">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-5">
-                  <Link href="/register" className="inline-flex items-center gap-2 text-xs font-medium text-primary/80 transition-colors duration-200 hover:text-primary">
-                    Create an account to enter
-                    <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-1" />
-                  </Link>
-                </div>
-              </div>
-            </article>
-          ))}
         </div>
       </section>
 

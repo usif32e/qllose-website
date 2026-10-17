@@ -1,350 +1,251 @@
-// Centralized Qllose data types and fallback data
 
-export type PlanetId =
-  | 'creator'
-  | 'gamer'
-  | 'business'
+ // Centralized Qllose data types and fallback data
 
+export type PlanetId = 'creator' | 'gamer' | 'business'
 
 export interface Planet {
-
   id: PlanetId
-
   name: string
-
   tagline: string
-
   description: string
-
   audience: string[]
-
   channels: string[]
-
   members: number
-
   accent: string
-
   accent2: string
-
 }
 
-
-
+// Gaming is the only planet shown in the planet selection page.
+// Keep the legacy IDs for compatibility with other existing pages.
 export const planets: Planet[] = [
-
   {
-    id:'creator',
-
-    name:'Creator Planet',
-
-    tagline:'For the people who build the future.',
-
+    id: 'gamer',
+    name: 'Gaming Planet',
+    tagline: 'Where teams, friends and legends meet.',
     description:
-      'A universe for developers, designers, editors and artists shipping their craft every day.',
-
-    audience:[
-      'Developers',
-      'Designers',
-      'Editors',
-      'Artists',
-      'Creators'
+      'A universe for gamers to find their squad, join communities, and play together.',
+    audience: [
+      'Competitive Players',
+      'Gaming Communities',
+      'Squads',
+      'Friends',
     ],
+    
+channels: [
+  // Main
+  'Global',
+  'Looking for Players',
+  'Find a Squad',
+  'Gaming News',
+  'Game Releases',
+  'Clips & Highlights',
+  'Tournaments',
+  'Esports',
+  'Gaming Setup',
+  'Tech & Hardware',
 
-    channels:[
-      'Global',
-      'Web Development',
-      'Frontend',
-      'Backend',
-      'Mobile Development',
-      'UI / UX',
-      'Graphic Design',
-      'Motion Design',
-      'Video Editing',
-      'Photography',
-      '3D',
-      'Artificial Intelligence',
-      'Open Source',
-      'Freelancing'
-    ],
+  // FPS & Tactical
+  'Valorant',
+  'Counter-Strike 2',
+  'Call of Duty',
+  'Call of Duty: Warzone',
+  'Rainbow Six Siege',
+  'Overwatch 2',
+  'Apex Legends',
+  'The Finals',
+  'Battlefield',
+  'Escape from Tarkov',
+  'PUBG: Battlegrounds',
+  'Delta Force',
+  'Marvel Rivals',
+  'Destiny 2',
+  'Halo Infinite',
 
-    members:0,
+  // Battle Royale
+  'Fortnite',
+  'PUBG Mobile',
+  'Free Fire',
+  'Call of Duty Mobile',
+  'Blood Strike',
+  'Fall Guys',
 
-    accent:'var(--creator)',
+  // MOBA & Strategy
+  'League of Legends',
+  'Dota 2',
+  'Mobile Legends: Bang Bang',
+  'Honor of Kings',
+  'Wild Rift',
+  'Teamfight Tactics',
+  'Age of Empires',
+  'Civilization VII',
+  'Total War',
 
-    accent2:'var(--creator-2)',
+  // Sandbox & Survival
+  'Minecraft',
+  'Roblox',
+  'Terraria',
+  'Rust',
+  'ARK: Survival Ascended',
+  'Palworld',
+  'Valheim',
+  'DayZ',
+  'Project Zomboid',
+  'The Forest',
+  'Sons of the Forest',
+  '7 Days to Die',
+  'Subnautica',
+
+  // RPG & Adventure
+  'GTA V',
+  'Red Dead Redemption 2',
+  'Elden Ring',
+  'Elden Ring Nightreign',
+  'Dark Souls',
+  'Baldur’s Gate 3',
+  'Cyberpunk 2077',
+  'The Witcher 3',
+  'Monster Hunter Wilds',
+  'Genshin Impact',
+  'Honkai: Star Rail',
+  'Wuthering Waves',
+  'Final Fantasy XIV',
+  'World of Warcraft',
+  'Black Myth: Wukong',
+  'Hades II',
+
+  // Sports & Racing
+  'EA Sports FC',
+  'eFootball',
+  'NBA 2K',
+  'Madden NFL',
+  'Rocket League',
+  'Forza Horizon',
+  'Forza Motorsport',
+  'Gran Turismo 7',
+  'F1',
+  'Need for Speed',
+  'Assetto Corsa',
+  'The Crew Motorfest',
+
+  // Fighting
+  'Tekken 8',
+  'Street Fighter 6',
+  'Mortal Kombat 1',
+  'Super Smash Bros.',
+  'Dragon Ball: Sparking! ZERO',
+
+  // Horror & Co-op
+  'Phasmophobia',
+  'Dead by Daylight',
+  'Lethal Company',
+  'Content Warning',
+  'Left 4 Dead 2',
+  'Helldivers 2',
+  'Deep Rock Galactic',
+  'Ready or Not',
+  'It Takes Two',
+
+  // Indie & Casual
+  'Among Us',
+  'Stardew Valley',
+  'The Sims 4',
+  'Hollow Knight',
+  'Silksong',
+  'Cuphead',
+  'Undertale',
+  'Brawlhalla',
+  'Team Fortress 2',
+  'VRChat',
+
+  // Platforms & Community
+  'Steam',
+  'PlayStation',
+  'Xbox',
+  'Nintendo Switch',
+  'Mobile Gaming',
+  'PC Gaming',
+  'Game Development',
+],
+
+    members: 0,
+    accent: 'var(--gamer)',
+    accent2: 'var(--gamer-2)',
   },
-
-
-
-  {
-    id:'gamer',
-
-    name:'Gamer Planet',
-
-    tagline:
-      'Where teams, friends and legends meet.',
-
-    description:
-      'Competitive players and gaming communities finding their squad across every title.',
-
-    audience:[
-      'Competitive players',
-      'Gaming communities',
-      'Teams',
-      'Friends'
-    ],
-
-    channels:[
-      'Global',
-      'Valorant',
-      'Counter Strike',
-      'League of Legends',
-      'Minecraft',
-      'PUBG',
-      'Fortnite',
-      'EA Sports FC',
-      'Grand Theft Auto',
-      'Call of Duty',
-      'Rocket League',
-      'Apex Legends'
-    ],
-
-    members:0,
-
-    accent:'var(--gamer)',
-
-    accent2:'var(--gamer-2)',
-  },
-
-
-
-  {
-    id:'business',
-
-    name:'Business Planet',
-
-    tagline:
-      'Founders, freelancers and people building companies.',
-
-    description:
-      'Entrepreneurs, founders and professionals trading ideas, deals and momentum.',
-
-    audience:[
-      'Entrepreneurs',
-      'Founders',
-      'Freelancers',
-      'Professionals'
-    ],
-
-    channels:[
-      'Global',
-      'Startups',
-      'Shopify',
-      'Marketing',
-      'Sales',
-      'Branding',
-      'Finance',
-      'Investing',
-      'SaaS',
-      'Networking'
-    ],
-
-    members:0,
-
-    accent:'var(--business)',
-
-    accent2:'var(--business-2)',
-  }
-
 ]
 
-
-
-export function getPlanet(id:string){
-
-  return planets.find(
-    p=>p.id===id
-  )
-
+export function getPlanet(id: string) {
+  return planets.find((planet) => planet.id === id)
 }
-
-
-
-
 
 // =====================
 // Messages
 // =====================
+
 export interface Message {
   id: string
-
-  // Delete permissions
   user_id?: string
-
   author: string
   initials: string
   color: string
   time: string
   text: string
-
-  // Message type
-message_type?: 'text' | 'voice' | 'image'
-
-  // Voice message data
+  message_type?: 'text' | 'voice' | 'image'
   audio_path?: string | null
   audio_duration?: number | null
-
   avatar_url?: string | null
-
   reactions?: {
     emoji: string
     count: number
   }[]
 }
 
-
-
+export const messagesByPlanet: Record<PlanetId, Message[]> = {
+  creator: [],
+  gamer: [
+    {
+      id: 'g1',
+      author: 'Kenji Tanaka',
+      initials: 'KT',
+      color: 'var(--gamer)',
+      time: '20:12',
+      text: 'Ranked grind tonight? Need one more for a full stack.',
+    },
+  ],
+  business: [],
+}
 
 // =====================
 // Members
 // =====================
 
 export interface Member {
-
-user_id:string
-
-name:string
-
-  initials:string
-
-  color:string
-
-  role:string
-
-  online:boolean
-
-  avatar_url?:string|null
-
+  user_id: string
+  name: string
+  initials: string
+  color: string
+  role: string
+  online: boolean
+  avatar_url?: string | null
 }
-
-
-
-
-
-export const messagesByPlanet:
-Record<PlanetId,Message[]> = {
-
-  creator:[
-
-    {
-      id:'c1',
-
-      author:'Maya Reyes',
-
-      initials:'MR',
-
-      color:'var(--creator)',
-
-      time:'09:41',
-
-      text:
-        'Just shipped the new design system tokens.',
-
-    }
-
-  ],
-
-
-
-  gamer:[
-
-    {
-      id:'g1',
-
-      author:'Kenji Tanaka',
-
-      initials:'KT',
-
-      color:'var(--gamer)',
-
-      time:'20:12',
-
-      text:
-        'Ranked grind tonight? Need one more for a full stack.',
-
-    }
-
-  ],
-
-
-
-  business:[
-
-    {
-      id:'b1',
-
-      author:'Priya Nair',
-
-      initials:'PN',
-
-      color:'var(--business)',
-
-      time:'11:02',
-
-      text:
-        'Closed our first paying customers this week.',
-
-    }
-
-  ]
-
-}
-
-
-
-
 
 export const currentUser = {
-
-  username:'nova',
-
-  displayName:'Nova Sterling',
-
-  initials:'NS',
-
-  email:'nova@qllose.space',
-
-  bio:
-    'Product designer exploring the edges of the universe.',
-
-  favoritePlanet:'Creator Planet',
-
-  joinDate:'March 2025',
-
-  stats:{
-
-    messages:1284,
-
-    planets:3,
-
-    channels:12
-
-  }
-
+  username: 'nova',
+  displayName: 'Nova Sterling',
+  initials: 'NS',
+  email: 'nova@qllose.space',
+  bio: 'A gamer exploring the edges of the universe.',
+  favoritePlanet: 'Gaming Planet',
+  joinDate: 'March 2025',
+  stats: {
+    messages: 1284,
+    planets: 1,
+    channels: 12,
+  },
 }
 
-
-
-
-
 // Temporary export for old imports
-
-export const membersByPlanet = {
-
-  creator:[],
-
-  gamer:[],
-
-  business:[]
-
+export const membersByPlanet: Record<PlanetId, Member[]> = {
+  creator: [],
+  gamer: [],
+  business: [],
 }
